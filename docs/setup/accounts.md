@@ -68,3 +68,19 @@ environment should remain intentionally simple.
 A local Kong container is reproducible and does not expire; Konnect demonstrates
 a realistic managed control-plane API. This choice should be made immediately
 before the Kong vertical slice.
+
+## Solace connectivity check
+
+The manually triggered `Test Solace connectivity` workflow publishes one JSON
+message to the `test/github/actions` topic through Solace REST messaging.
+
+Create a GitHub environment named `development`, then add these environment
+secrets:
+
+- `SOLACE_REST_URL`: the REST host URI copied from the service's **Connect** tab
+- `SOLACE_USERNAME`: a dedicated, enabled messaging client username
+- `SOLACE_PASSWORD`: that messaging client's password
+
+The client ACL must allow publishing to `test/github/actions`. Run the check
+from **Actions > Test Solace connectivity > Run workflow**. A successful run
+prints only a confirmation; credentials are never written to the log.
