@@ -71,9 +71,10 @@ before the Kong vertical slice.
 
 ## Solace connectivity check
 
-The manually triggered `Test Solace connectivity` workflow publishes one JSON
-message with MQTT QoS 1 to the `test/github/actions` topic over secure
-WebSockets (WSS).
+The manually triggered `Test Solace connectivity` workflow subscribes to a
+run-specific topic below `test/github/actions`, publishes one JSON message with
+MQTT QoS 1 over secure WebSockets (WSS), and succeeds only after receiving the
+identical payload back from the broker.
 
 Create a GitHub environment named `development`, then add these environment
 secrets:
@@ -83,6 +84,7 @@ secrets:
 - `SOLACE_USERNAME`: a dedicated, enabled messaging client username
 - `SOLACE_PASSWORD`: that messaging client's password
 
-The client ACL must allow publishing to `test/github/actions`. Run the check
-from **Actions > Test Solace connectivity > Run workflow**. A successful run
-prints only a confirmation; credentials are never written to the log.
+The client ACL must allow both publishing and subscribing below
+`test/github/actions/>`. Run the check from
+**Actions > Test Solace connectivity > Run workflow**. A successful run prints
+only a confirmation; credentials are never written to the log.
