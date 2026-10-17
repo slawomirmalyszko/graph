@@ -1,0 +1,58 @@
+name: Test Solace connectivity
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish-test-event:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: development
+
+    steps:
+      - name: Validate configuration
+        env:
+          SOLACE_REST_URL: ${{ secrets.SOLACE_REST_URL }}
+          SOLACE_USERNAME: ${{ secrets.SOLACE_USERNAME }}
+          SOLACE_PASSWORD: ${{ secrets.SOLACE_PASSWORD }}
+        shell: bash
+        run: |
+          missing=0
+          for name in SOLACE_REST_URL SOLACE_USERNAME SOLACE_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Required secret $name is not configured"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Publish test event
+        env:
+          SOLACE_REST_URL: ${{ secrets.SOLACE_REST_URL }}
+          SOLACE_USERNAME: ${{ secrets.SOLACE_USERNAME }}
+          SOLACE_PASSWORD: ${{ secrets.SOLACE_PASSWORD }}
+        shell: bash
+        run: |
+          payload=$(printf \
+            '{"source":"github-actions","repository":"%s","run_id":"%s","status":"ok"}' \
+            "$GITHUB_REPOSITORY" \
+            "$GITHUB_RUN_ID")
+
+          curl \
+            --fail-with-body \
+            --show-error \
+            --silent \
+            --retry 3 \
+            --retry-all-errors \
+            --connect-timeout 15 \
+            --max-time 30 \
+            --user "$SOLACE_USERNAME:$SOLACE_PASSWORD" \
+            --header "Content-Type: application/json" \
+            --header "Solace-Delivery-Mode: persistent" \
+            --data "$payload" \
+            "${SOLACE_REST_URL%/}/TOPIC/test/github/actions"
+
+          echo "Published a test event to test/github/actions"
