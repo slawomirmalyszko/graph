@@ -72,12 +72,14 @@ before the Kong vertical slice.
 ## Solace connectivity check
 
 The manually triggered `Test Solace connectivity` workflow publishes one JSON
-message to the `test/github/actions` topic through Solace REST messaging.
+message with MQTT QoS 1 to the `test/github/actions` topic over secure
+WebSockets (WSS).
 
 Create a GitHub environment named `development`, then add these environment
 secrets:
 
-- `SOLACE_REST_URL`: the REST host URI copied from the service's **Connect** tab
+- `SOLACE_WSS_URL`: the secured MQTT WebSocket URI (`wss://...`) copied from the
+  service's **Connect > MQTT** details
 - `SOLACE_USERNAME`: a dedicated, enabled messaging client username
 - `SOLACE_PASSWORD`: that messaging client's password
 

@@ -13,46 +13,40 @@ jobs:
     environment: development
 
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
       - name: Validate configuration
         env:
-          SOLACE_REST_URL: ${{ secrets.SOLACE_REST_URL }}
+          SOLACE_WSS_URL: ${{ secrets.SOLACE_WSS_URL }}
           SOLACE_USERNAME: ${{ secrets.SOLACE_USERNAME }}
           SOLACE_PASSWORD: ${{ secrets.SOLACE_PASSWORD }}
         shell: bash
         run: |
           missing=0
-          for name in SOLACE_REST_URL SOLACE_USERNAME SOLACE_PASSWORD; do
+          for name in SOLACE_WSS_URL SOLACE_USERNAME SOLACE_PASSWORD; do
             if [[ -z "${!name}" ]]; then
               echo "::error::Required secret $name is not configured"
               missing=1
             fi
           done
+          if [[ -n "$SOLACE_WSS_URL" && "$SOLACE_WSS_URL" != wss://* ]]; then
+            echo "::error::SOLACE_WSS_URL must start with wss://"
+            missing=1
+          fi
           exit "$missing"
 
-      - name: Publish test event
+      - name: Install MQTT client
+        run: npm install --no-save --ignore-scripts mqtt@5.14.1
+
+      - name: Publish test event over WSS
         env:
-          SOLACE_REST_URL: ${{ secrets.SOLACE_REST_URL }}
+          SOLACE_WSS_URL: ${{ secrets.SOLACE_WSS_URL }}
           SOLACE_USERNAME: ${{ secrets.SOLACE_USERNAME }}
           SOLACE_PASSWORD: ${{ secrets.SOLACE_PASSWORD }}
-        shell: bash
-        run: |
-          payload=$(printf \
-            '{"source":"github-actions","repository":"%s","run_id":"%s","status":"ok"}' \
-            "$GITHUB_REPOSITORY" \
-            "$GITHUB_RUN_ID")
-
-          curl \
-            --fail-with-body \
-            --show-error \
-            --silent \
-            --retry 3 \
-            --retry-all-errors \
-            --connect-timeout 15 \
-            --max-time 30 \
-            --user "$SOLACE_USERNAME:$SOLACE_PASSWORD" \
-            --header "Content-Type: application/json" \
-            --header "Solace-Delivery-Mode: persistent" \
-            --data "$payload" \
-            "${SOLACE_REST_URL%/}/TOPIC/test/github/actions"
-
-          echo "Published a test event to test/github/actions"
+        run: node .github/scripts/solace-wss-publish.cjs
