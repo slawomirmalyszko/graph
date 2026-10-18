@@ -4,6 +4,13 @@ This lightweight log records decisions made before formal ADRs are warranted.
 
 ## Accepted
 
+### AWS home region
+
+The project uses Europe (Stockholm), `eu-north-1`, as its AWS home region.
+The new AWS experience assigns European Free Plan projects to this region and
+does not allow their project region to be changed. Region-dependent service and
+Bedrock model availability must still be verified before implementation.
+
 ### Core graph path
 
 An end-to-end flow starts and ends at an `Application` and can traverse other

@@ -32,16 +32,18 @@ underway.
 - [ ] Create a dedicated learning-project account, not a corporate account.
 - [ ] Protect the root user with a unique password and MFA.
 - [ ] Do not create root access keys.
-- [ ] Choose a home region after checking Bedrock model availability.
+- [ ] Confirm the project region is Europe (Stockholm), `eu-north-1`.
 - [ ] Create a small budget and multiple cost alerts before provisioning.
 - [ ] Enable Free Tier and billing alerts.
 - [ ] Use IAM Identity Center or another administrative identity for daily use.
 - [ ] Later create a narrowly scoped GitHub Actions OIDC role.
 - [ ] Record the account ID and region in a local uncommitted `.env`, never here.
 
-The AWS free-plan and service access rules change over time. Verify the selected
-plan's duration, credit limits, Bedrock access, and permitted services during
-signup.
+The new AWS experience currently assigns European projects to Europe
+(Stockholm), `eu-north-1`, based on the contact address. That project region
+cannot be changed without moving to the advanced AWS experience. Free-plan and
+service access rules change over time, so verify the plan's duration, credit
+limits, Bedrock model access, and permitted services during signup.
 
 ## Neo4j AuraDB checklist
 
