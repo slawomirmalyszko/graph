@@ -22,6 +22,7 @@ vertical slice will follow after the graph model is agreed.
 - [Project charter](docs/project-charter.md)
 - [Architecture decisions](docs/decisions.md)
 - [External account setup](docs/setup/accounts.md)
+- [AWS agent and MCP workflow](docs/setup/aws-agent-workflow.md)
 
 ## Local development
 
