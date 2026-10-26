@@ -1,0 +1,1132 @@
+{
+  "schema_version": "1.0.0",
+  "nodes": {
+    "Application": [
+      {
+        "id": "app:sap-erp",
+        "apm_id": "APM_SAP_001",
+        "name": "SAP S/4HANA",
+        "status": "active",
+        "application_role": "business_application",
+        "description": "Core ERP for finance logistics and procurement",
+        "business_owner": "Finance & IT",
+        "support_team": "ERP Team"
+      },
+      {
+        "id": "app:salesforce",
+        "apm_id": "APM_SF_001",
+        "name": "Salesforce CRM",
+        "status": "active",
+        "application_role": "business_application",
+        "description": "Customer relationship and opportunity management",
+        "business_owner": "Commercial",
+        "support_team": "CRM Team"
+      },
+      {
+        "id": "app:oracle-hcm",
+        "apm_id": "APM_HCM_001",
+        "name": "Oracle HCM Cloud",
+        "status": "active",
+        "application_role": "business_application",
+        "description": "Human capital management and talent acquisition",
+        "business_owner": "HR",
+        "support_team": "HRIS Team"
+      },
+      {
+        "id": "app:workday",
+        "apm_id": "APM_WD_001",
+        "name": "Workday",
+        "status": "active",
+        "application_role": "business_application",
+        "description": "HR workforce planning and analytics platform",
+        "business_owner": "HR",
+        "support_team": "HRIS Team"
+      },
+      {
+        "id": "app:veeva",
+        "apm_id": "APM_VEEVA_001",
+        "name": "Veeva Vault",
+        "status": "active",
+        "application_role": "business_application",
+        "description": "Clinical study and regulatory document management",
+        "business_owner": "R&D",
+        "support_team": "Regulatory IT"
+      },
+      {
+        "id": "app:coupa",
+        "apm_id": "APM_COUPA_001",
+        "name": "Coupa",
+        "status": "active",
+        "application_role": "business_application",
+        "description": "Procurement and spend management",
+        "business_owner": "Finance",
+        "support_team": "Procurement"
+      },
+      {
+        "id": "app:servicenow",
+        "apm_id": "APM_SN_001",
+        "name": "ServiceNow",
+        "status": "active",
+        "application_role": "business_application",
+        "description": "IT service management and asset tracking",
+        "business_owner": "IT",
+        "support_team": "ITSM Team"
+      },
+      {
+        "id": "app:data-lake",
+        "apm_id": "APM_DL_001",
+        "name": "Enterprise Data Lake",
+        "status": "active",
+        "application_role": "business_application",
+        "description": "Centralised analytical and reporting data repository",
+        "business_owner": "Data & AI",
+        "support_team": "Data Engineering"
+      },
+      {
+        "id": "app:mdg",
+        "apm_id": "APM_MDG_001",
+        "name": "MDG-X",
+        "status": "active",
+        "application_role": "business_application",
+        "description": "Master data governance and golden record management",
+        "business_owner": "IT",
+        "support_team": "MDM Team"
+      },
+      {
+        "id": "app:lims",
+        "apm_id": "APM_LIMS_001",
+        "name": "LabVantage LIMS",
+        "status": "active",
+        "application_role": "business_application",
+        "description": "Laboratory information management system",
+        "business_owner": "R&D",
+        "support_team": "Lab IT"
+      },
+      {
+        "id": "app:iics",
+        "apm_id": "APM_IICS_001",
+        "name": "Informatica IICS",
+        "status": "active",
+        "application_role": "integration_platform"
+      },
+      {
+        "id": "app:kong",
+        "apm_id": "APM_KONG_001",
+        "name": "Kong API Platform",
+        "status": "active",
+        "application_role": "integration_platform"
+      },
+      {
+        "id": "app:tibco",
+        "apm_id": "APM_TIBCO_001",
+        "name": "TIBCO Integration Platform",
+        "status": "active",
+        "application_role": "integration_platform"
+      },
+      {
+        "id": "app:mulesoft",
+        "apm_id": "APM_MULE_001",
+        "name": "MuleSoft Anypoint Platform",
+        "status": "active",
+        "application_role": "integration_platform"
+      },
+      {
+        "id": "app:iacs",
+        "apm_id": "APM_IACS_001",
+        "name": "Integration API and Custom Services",
+        "status": "active",
+        "application_role": "integration_platform"
+      },
+      {
+        "id": "app:rabbitmq",
+        "apm_id": "APM_RABBIT_001",
+        "name": "RabbitMQ Messaging Platform",
+        "status": "active",
+        "application_role": "integration_platform"
+      }
+    ],
+    "Interface": [
+      {
+        "id": "iface:iface-sap-fin-out",
+        "name": "SAP Financial Outbound",
+        "interface_type": "application_endpoint",
+        "status": "active",
+        "source_system": "application",
+        "source_id": "sap-fin-outbound",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z"
+      },
+      {
+        "id": "iface:iface-dl-fin-in",
+        "name": "Data Lake Financial Ingest",
+        "interface_type": "application_endpoint",
+        "status": "active",
+        "source_system": "application",
+        "source_id": "dl-fin-ingest",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z"
+      },
+      {
+        "id": "iface:iface-sf-order-out",
+        "name": "Salesforce Order Outbound",
+        "interface_type": "application_endpoint",
+        "status": "active",
+        "source_system": "application",
+        "source_id": "sf-order-outbound",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z"
+      },
+      {
+        "id": "iface:iface-sap-order-in",
+        "name": "SAP Order Inbound",
+        "interface_type": "application_endpoint",
+        "status": "active",
+        "source_system": "application",
+        "source_id": "sap-order-inbound",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z"
+      },
+      {
+        "id": "iface:iface-hcm-out",
+        "name": "Oracle HCM Outbound",
+        "interface_type": "application_endpoint",
+        "status": "planned",
+        "source_system": "application",
+        "source_id": "hcm-outbound",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "iface:iface-wd-in",
+        "name": "Workday HR Inbound",
+        "interface_type": "application_endpoint",
+        "status": "planned",
+        "source_system": "application",
+        "source_id": "workday-hr-inbound",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "iface:iface-veeva-out",
+        "name": "Veeva Vault Outbound",
+        "interface_type": "application_endpoint",
+        "status": "active",
+        "source_system": "application",
+        "source_id": "veeva-vault-outbound",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z"
+      },
+      {
+        "id": "iface:iface-lims-in",
+        "name": "LIMS Clinical Inbound",
+        "interface_type": "application_endpoint",
+        "status": "active",
+        "source_system": "application",
+        "source_id": "lims-clinical-inbound",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z"
+      },
+      {
+        "id": "iface:iface-coupa-out",
+        "name": "Coupa PO Outbound",
+        "interface_type": "application_endpoint",
+        "status": "active",
+        "source_system": "application",
+        "source_id": "coupa-po-outbound",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z"
+      },
+      {
+        "id": "iface:iface-sap-po-in",
+        "name": "SAP PO Inbound",
+        "interface_type": "application_endpoint",
+        "status": "active",
+        "source_system": "application",
+        "source_id": "sap-po-inbound",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z"
+      },
+      {
+        "id": "iface:iface-sn-out",
+        "name": "ServiceNow Asset Outbound",
+        "interface_type": "application_endpoint",
+        "status": "active",
+        "source_system": "application",
+        "source_id": "sn-asset-outbound",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z"
+      },
+      {
+        "id": "iface:iface-sap-asset-in",
+        "name": "SAP Asset Inbound",
+        "interface_type": "application_endpoint",
+        "status": "active",
+        "source_system": "application",
+        "source_id": "sap-asset-inbound",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z"
+      },
+      {
+        "id": "iface:iface-sap-mdg-out",
+        "name": "SAP Master Data Outbound",
+        "interface_type": "application_endpoint",
+        "status": "active",
+        "source_system": "application",
+        "source_id": "sap-mdg-outbound",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z"
+      },
+      {
+        "id": "iface:iface-mdg-in",
+        "name": "MDG-X Master Data Inbound",
+        "interface_type": "application_endpoint",
+        "status": "active",
+        "source_system": "application",
+        "source_id": "mdg-master-inbound",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z"
+      },
+      {
+        "id": "iface:iface-wd-hr-out",
+        "name": "Workday HR Outbound",
+        "interface_type": "application_endpoint",
+        "status": "active",
+        "source_system": "application",
+        "source_id": "workday-hr-outbound",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z"
+      },
+      {
+        "id": "iface:iface-dl-hr-in",
+        "name": "Data Lake HR Ingest",
+        "interface_type": "application_endpoint",
+        "status": "active",
+        "source_system": "application",
+        "source_id": "dl-hr-ingest",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z"
+      },
+      {
+        "id": "iface:iface-iics-fin",
+        "name": "IICS Finance Extract Mapping",
+        "interface_type": "mapping",
+        "status": "active",
+        "source_system": "integration_platform",
+        "source_id": "sap-finance-extractor",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z",
+        "x_iics_mapping_name": "SAP Finance Extract",
+        "x_iics_task_name": "Finance Full Load"
+      },
+      {
+        "id": "iface:iface-kong-order",
+        "name": "Kong Route /api/v1/orders",
+        "interface_type": "api",
+        "status": "active",
+        "source_system": "kong",
+        "source_id": "sf-order-receiver",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z",
+        "x_kong_route_path": "/api/v1/orders",
+        "x_kong_http_method": "POST"
+      },
+      {
+        "id": "iface:iface-tibco-order",
+        "name": "TIBCO Order Processor",
+        "interface_type": "process",
+        "status": "active",
+        "source_system": "tibco",
+        "source_id": "Order_Processor",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z",
+        "x_tibco_process_name": "Order_Processor.bwp",
+        "x_tibco_adapter_type": "REST Adapter"
+      },
+      {
+        "id": "iface:iface-mule-hcm",
+        "name": "MuleSoft HCM Sync Flow",
+        "interface_type": "mapping",
+        "status": "planned",
+        "source_system": "integration_platform",
+        "source_id": "hcm-workday-sync",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "x_mulesoft_flow_name": "HCMSyncFlow",
+        "x_mulesoft_connector_type": "Workday Connector"
+      },
+      {
+        "id": "iface:iface-iacs-vault",
+        "name": "IACS Vault Sync Endpoint",
+        "interface_type": "api_operation",
+        "status": "active",
+        "source_system": "custom",
+        "source_id": "vault-lims-api",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z",
+        "x_custom_operation_name": "/vault/sync",
+        "x_mulesoft_flow_name": "SyncStudyData"
+      },
+      {
+        "id": "iface:iface-rabbit-clinical",
+        "name": "RabbitMQ Clinical Events Exchange",
+        "interface_type": "topic",
+        "status": "active",
+        "source_system": "rabbitmq",
+        "source_id": "clinical-events-exchange",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z",
+        "x_rabbitmq_exchange_name": "clinical.events",
+        "x_rabbitmq_queue_name": "clinical.lims.queue",
+        "x_rabbitmq_routing_key": "clinical.lims.#",
+        "x_rabbitmq_exchange_type": "topic"
+      },
+      {
+        "id": "iface:iface-rabbit-po",
+        "name": "RabbitMQ Coupa PO Exchange",
+        "interface_type": "topic",
+        "status": "active",
+        "source_system": "rabbitmq",
+        "source_id": "coupa-po-exchange",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z",
+        "x_rabbitmq_exchange_name": "coupa.po.events",
+        "x_rabbitmq_exchange_type": "direct"
+      },
+      {
+        "id": "iface:iface-iics-po",
+        "name": "IICS PO Inbound Mapping",
+        "interface_type": "mapping",
+        "status": "active",
+        "source_system": "integration_platform",
+        "source_id": "coupa-sap-po",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z",
+        "x_iics_mapping_name": "Coupa PO to SAP",
+        "x_iics_task_name": "PO Inbound Task"
+      },
+      {
+        "id": "iface:iface-kong-asset",
+        "name": "Kong Route /api/v1/assets",
+        "interface_type": "api",
+        "status": "active",
+        "source_system": "kong",
+        "source_id": "sn-asset-api",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z",
+        "x_kong_route_path": "/api/v1/assets",
+        "x_kong_http_method": "PUT"
+      },
+      {
+        "id": "iface:iface-tibco-asset",
+        "name": "TIBCO Asset Sync Process",
+        "interface_type": "process",
+        "status": "active",
+        "source_system": "tibco",
+        "source_id": "Asset_Sync",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z",
+        "x_tibco_process_name": "Asset_Sync.bwp",
+        "x_tibco_adapter_type": "REST Adapter"
+      },
+      {
+        "id": "iface:iface-rabbit-mdg",
+        "name": "RabbitMQ Material Master Exchange",
+        "interface_type": "topic",
+        "status": "active",
+        "source_system": "rabbitmq",
+        "source_id": "mdg-material-exchange",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z",
+        "x_rabbitmq_exchange_name": "mdg.material.events",
+        "x_rabbitmq_routing_key": "mdg.master.#",
+        "x_rabbitmq_exchange_type": "topic"
+      },
+      {
+        "id": "iface:iface-mule-hr",
+        "name": "MuleSoft HR Analytics Pipeline",
+        "interface_type": "mapping",
+        "status": "active",
+        "source_system": "integration_platform",
+        "source_id": "workday-hr-pipeline",
+        "environment": "dev",
+        "discovery_state": "observed",
+        "last_seen_at": "2024-09-28T00:00:00Z",
+        "x_mulesoft_flow_name": "HRAnalyticsPipeline",
+        "x_mulesoft_connector_type": "Workday Connector"
+      }
+    ],
+    "Integration": [
+      {
+        "id": "integration:intg-001-1",
+        "name": "SAP to IICS Financial Extract",
+        "platform_apm_id": "APM_IICS_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_001_1",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-001-2",
+        "name": "IICS to Data Lake Financial Load",
+        "platform_apm_id": "APM_IICS_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_001_2",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-002-1",
+        "name": "SF Outbound to Kong API",
+        "platform_apm_id": "APM_KONG_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_002_1",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-002-2",
+        "name": "Kong to TIBCO Order Processing",
+        "platform_apm_id": "APM_TIBCO_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_002_2",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-002-3",
+        "name": "TIBCO to SAP Order Inbound",
+        "platform_apm_id": "APM_TIBCO_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_002_3",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-003-1",
+        "name": "HCM Outbound to MuleSoft",
+        "platform_apm_id": "APM_MULE_001",
+        "status": "planned",
+        "source_system": "reference_seed",
+        "source_id": "INTG_003_1",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-003-2",
+        "name": "MuleSoft to Workday Inbound",
+        "platform_apm_id": "APM_MULE_001",
+        "status": "planned",
+        "source_system": "reference_seed",
+        "source_id": "INTG_003_2",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-004-1",
+        "name": "Vault to IACS Sync Endpoint",
+        "platform_apm_id": "APM_IACS_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_004_1",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-004-2",
+        "name": "IACS to RabbitMQ Clinical Events",
+        "platform_apm_id": "APM_RABBIT_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_004_2",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-004-3",
+        "name": "RabbitMQ to LIMS Clinical Inbound",
+        "platform_apm_id": "APM_RABBIT_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_004_3",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-005-1",
+        "name": "Coupa Outbound to RabbitMQ",
+        "platform_apm_id": "APM_RABBIT_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_005_1",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-005-2",
+        "name": "RabbitMQ to IICS PO Mapping",
+        "platform_apm_id": "APM_IICS_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_005_2",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-005-3",
+        "name": "IICS to SAP PO Inbound",
+        "platform_apm_id": "APM_IICS_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_005_3",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-006-1",
+        "name": "ServiceNow to Kong Asset API",
+        "platform_apm_id": "APM_KONG_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_006_1",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-006-2",
+        "name": "Kong to TIBCO Asset Sync",
+        "platform_apm_id": "APM_TIBCO_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_006_2",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-006-3",
+        "name": "TIBCO to SAP Asset Inbound",
+        "platform_apm_id": "APM_TIBCO_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_006_3",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-007-1",
+        "name": "SAP Outbound to RabbitMQ",
+        "platform_apm_id": "APM_RABBIT_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_007_1",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-007-2",
+        "name": "RabbitMQ to MDG-X Inbound",
+        "platform_apm_id": "APM_RABBIT_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_007_2",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-008-1",
+        "name": "Workday Outbound to MuleSoft",
+        "platform_apm_id": "APM_MULE_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_008_1",
+        "environment": "dev",
+        "discovery_state": "observed"
+      },
+      {
+        "id": "integration:intg-008-2",
+        "name": "MuleSoft to Data Lake HR Ingest",
+        "platform_apm_id": "APM_MULE_001",
+        "status": "active",
+        "source_system": "reference_seed",
+        "source_id": "INTG_008_2",
+        "environment": "dev",
+        "discovery_state": "observed"
+      }
+    ],
+    "InformationObject": [
+      {
+        "id": "info-object:financial-transaction",
+        "name": "Financial Transaction",
+        "description": "GL entries journal postings and cost centre allocations",
+        "domain": "Finance",
+        "schema_version": "1.2"
+      },
+      {
+        "id": "info-object:sales-order",
+        "name": "Sales Order",
+        "description": "Customer orders including line items pricing and delivery details",
+        "domain": "Commercial",
+        "schema_version": "2.0"
+      },
+      {
+        "id": "info-object:hr-employee-record",
+        "name": "HR Employee Record",
+        "description": "Employee master data including org structure roles and compensation",
+        "domain": "HR",
+        "schema_version": "3.1"
+      },
+      {
+        "id": "info-object:clinical-study-record",
+        "name": "Clinical Study Record",
+        "description": "Study protocols results and regulatory submission documents",
+        "domain": "R&D",
+        "schema_version": "1.0"
+      },
+      {
+        "id": "info-object:purchase-order",
+        "name": "Purchase Order",
+        "description": "Procurement purchase orders with approval workflow state",
+        "domain": "Finance",
+        "schema_version": "1.5"
+      },
+      {
+        "id": "info-object:it-asset",
+        "name": "IT Asset",
+        "description": "Hardware and software asset lifecycle and assignment records",
+        "domain": "IT",
+        "schema_version": "1.0"
+      },
+      {
+        "id": "info-object:master-data-record",
+        "name": "Master Data Record",
+        "description": "Material vendor and customer golden records from MDG-X",
+        "domain": "MDM",
+        "schema_version": "2.3"
+      }
+    ]
+  },
+  "relationships": {
+    "EXPOSES": [
+      {
+        "from": "app:sap-erp",
+        "to": "iface:iface-sap-fin-out"
+      },
+      {
+        "from": "app:sap-erp",
+        "to": "iface:iface-sap-mdg-out"
+      },
+      {
+        "from": "app:salesforce",
+        "to": "iface:iface-sf-order-out"
+      },
+      {
+        "from": "app:oracle-hcm",
+        "to": "iface:iface-hcm-out"
+      },
+      {
+        "from": "app:workday",
+        "to": "iface:iface-wd-hr-out"
+      },
+      {
+        "from": "app:veeva",
+        "to": "iface:iface-veeva-out"
+      },
+      {
+        "from": "app:coupa",
+        "to": "iface:iface-coupa-out"
+      },
+      {
+        "from": "app:servicenow",
+        "to": "iface:iface-sn-out"
+      }
+    ],
+    "USES": [
+      {
+        "from": "app:sap-erp",
+        "to": "iface:iface-sap-order-in"
+      },
+      {
+        "from": "app:sap-erp",
+        "to": "iface:iface-sap-po-in"
+      },
+      {
+        "from": "app:sap-erp",
+        "to": "iface:iface-sap-asset-in"
+      },
+      {
+        "from": "app:workday",
+        "to": "iface:iface-wd-in"
+      },
+      {
+        "from": "app:data-lake",
+        "to": "iface:iface-dl-fin-in"
+      },
+      {
+        "from": "app:data-lake",
+        "to": "iface:iface-dl-hr-in"
+      },
+      {
+        "from": "app:mdg",
+        "to": "iface:iface-mdg-in"
+      },
+      {
+        "from": "app:lims",
+        "to": "iface:iface-lims-in"
+      }
+    ],
+    "SOURCE_OF": [
+      {
+        "from": "iface:iface-sap-fin-out",
+        "to": "integration:intg-001-1"
+      },
+      {
+        "from": "iface:iface-iics-fin",
+        "to": "integration:intg-001-2"
+      },
+      {
+        "from": "iface:iface-sf-order-out",
+        "to": "integration:intg-002-1"
+      },
+      {
+        "from": "iface:iface-kong-order",
+        "to": "integration:intg-002-2"
+      },
+      {
+        "from": "iface:iface-tibco-order",
+        "to": "integration:intg-002-3"
+      },
+      {
+        "from": "iface:iface-hcm-out",
+        "to": "integration:intg-003-1"
+      },
+      {
+        "from": "iface:iface-mule-hcm",
+        "to": "integration:intg-003-2"
+      },
+      {
+        "from": "iface:iface-veeva-out",
+        "to": "integration:intg-004-1"
+      },
+      {
+        "from": "iface:iface-iacs-vault",
+        "to": "integration:intg-004-2"
+      },
+      {
+        "from": "iface:iface-rabbit-clinical",
+        "to": "integration:intg-004-3"
+      },
+      {
+        "from": "iface:iface-coupa-out",
+        "to": "integration:intg-005-1"
+      },
+      {
+        "from": "iface:iface-rabbit-po",
+        "to": "integration:intg-005-2"
+      },
+      {
+        "from": "iface:iface-iics-po",
+        "to": "integration:intg-005-3"
+      },
+      {
+        "from": "iface:iface-sn-out",
+        "to": "integration:intg-006-1"
+      },
+      {
+        "from": "iface:iface-kong-asset",
+        "to": "integration:intg-006-2"
+      },
+      {
+        "from": "iface:iface-tibco-asset",
+        "to": "integration:intg-006-3"
+      },
+      {
+        "from": "iface:iface-sap-mdg-out",
+        "to": "integration:intg-007-1"
+      },
+      {
+        "from": "iface:iface-rabbit-mdg",
+        "to": "integration:intg-007-2"
+      },
+      {
+        "from": "iface:iface-wd-hr-out",
+        "to": "integration:intg-008-1"
+      },
+      {
+        "from": "iface:iface-mule-hr",
+        "to": "integration:intg-008-2"
+      }
+    ],
+    "TARGETS": [
+      {
+        "from": "integration:intg-001-1",
+        "to": "iface:iface-iics-fin"
+      },
+      {
+        "from": "integration:intg-001-2",
+        "to": "iface:iface-dl-fin-in"
+      },
+      {
+        "from": "integration:intg-002-1",
+        "to": "iface:iface-kong-order"
+      },
+      {
+        "from": "integration:intg-002-2",
+        "to": "iface:iface-tibco-order"
+      },
+      {
+        "from": "integration:intg-002-3",
+        "to": "iface:iface-sap-order-in"
+      },
+      {
+        "from": "integration:intg-003-1",
+        "to": "iface:iface-mule-hcm"
+      },
+      {
+        "from": "integration:intg-003-2",
+        "to": "iface:iface-wd-in"
+      },
+      {
+        "from": "integration:intg-004-1",
+        "to": "iface:iface-iacs-vault"
+      },
+      {
+        "from": "integration:intg-004-2",
+        "to": "iface:iface-rabbit-clinical"
+      },
+      {
+        "from": "integration:intg-004-3",
+        "to": "iface:iface-lims-in"
+      },
+      {
+        "from": "integration:intg-005-1",
+        "to": "iface:iface-rabbit-po"
+      },
+      {
+        "from": "integration:intg-005-2",
+        "to": "iface:iface-iics-po"
+      },
+      {
+        "from": "integration:intg-005-3",
+        "to": "iface:iface-sap-po-in"
+      },
+      {
+        "from": "integration:intg-006-1",
+        "to": "iface:iface-kong-asset"
+      },
+      {
+        "from": "integration:intg-006-2",
+        "to": "iface:iface-tibco-asset"
+      },
+      {
+        "from": "integration:intg-006-3",
+        "to": "iface:iface-sap-asset-in"
+      },
+      {
+        "from": "integration:intg-007-1",
+        "to": "iface:iface-rabbit-mdg"
+      },
+      {
+        "from": "integration:intg-007-2",
+        "to": "iface:iface-mdg-in"
+      },
+      {
+        "from": "integration:intg-008-1",
+        "to": "iface:iface-mule-hr"
+      },
+      {
+        "from": "integration:intg-008-2",
+        "to": "iface:iface-dl-hr-in"
+      }
+    ],
+    "CARRIES": [
+      {
+        "from": "integration:intg-001-1",
+        "to": "info-object:financial-transaction",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-001-2",
+        "to": "info-object:financial-transaction",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-002-1",
+        "to": "info-object:sales-order",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-002-2",
+        "to": "info-object:sales-order",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-002-3",
+        "to": "info-object:sales-order",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-003-1",
+        "to": "info-object:hr-employee-record",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-003-2",
+        "to": "info-object:hr-employee-record",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-004-1",
+        "to": "info-object:clinical-study-record",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-004-2",
+        "to": "info-object:clinical-study-record",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-004-3",
+        "to": "info-object:clinical-study-record",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-005-1",
+        "to": "info-object:purchase-order",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-005-2",
+        "to": "info-object:purchase-order",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-005-3",
+        "to": "info-object:purchase-order",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-006-1",
+        "to": "info-object:it-asset",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-006-2",
+        "to": "info-object:it-asset",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-006-3",
+        "to": "info-object:it-asset",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-007-1",
+        "to": "info-object:master-data-record",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-007-2",
+        "to": "info-object:master-data-record",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-008-1",
+        "to": "info-object:hr-employee-record",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      },
+      {
+        "from": "integration:intg-008-2",
+        "to": "info-object:hr-employee-record",
+        "properties": {
+          "evidence_type": "reference_seed",
+          "confidence": 1.0
+        }
+      }
+    ]
+  }
+}
