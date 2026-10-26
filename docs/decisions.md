@@ -17,12 +17,13 @@ An end-to-end flow starts and ends at an `Application` and can traverse other
 applications:
 
 ```text
-(Application)-[:HAS_INTERFACE]->(Interface)
-  <-[:SOURCE_INTERFACE]-(Integration)-[:TARGET_INTERFACE]->(Interface)
-  <-[:HAS_INTERFACE]-(Application)
+(Application)-[:EXPOSES]->(Interface)-[:SOURCE_OF]->(Integration)
+  -[:TARGETS]->(Interface)<-[:USES]-(Application)
 ```
 
-The exact relationship names and direction remain subject to schema design.
+Consecutive integration hops connect through shared Interface nodes. An
+end-to-end flow is a traversed path between Application nodes; `flow_id` and
+`sequence` properties do not create topology.
 
 ### Core node concepts
 
@@ -35,14 +36,16 @@ The exact relationship names and direction remain subject to schema design.
 queues, and file endpoints. A defined type property and/or additional labels will
 retain their concrete meaning.
 
-An `Integration` connects exactly two interfaces. Applications, interfaces, and
-information objects may participate in multiple relationships.
+An `Integration` connects exactly two interfaces: one incoming `SOURCE_OF` and
+one outgoing `TARGETS`. Applications, interfaces, and information objects may
+participate in multiple relationships.
 
 ### Application minimum attributes
 
 - `apm_id`
 - `name`
-- `status`: initially `live`, `to_be_decommissioned`, or `decommissioned`
+- `status`: one of `planned`, `active`, `deprecated`, `decommissioning`,
+  `decommissioned`, or `unknown`
 
 ### Canonical property policy
 
@@ -52,8 +55,16 @@ Each canonical node type will define:
 - Optional but formally defined properties.
 - Additional source-specific properties.
 
-The policy for validating, naming, and storing additional properties is still to
-be designed.
+Additional source properties use `x_<source>_<property>` names and must contain
+Neo4j-compatible scalar values or lists of scalar values. The complete contract
+is defined in `schema/catalogue-schema.yaml`.
+
+### Platform representation
+
+Platform is metadata on an Integration, represented by required
+`platform_apm_id`. It references the ServiceNow APM ID of an Application master
+record whose role is `integration_platform` or `both`. Platform is not a graph
+node and does not participate in end-to-end topology.
 
 ### Query approach
 
@@ -62,16 +73,6 @@ a general autonomous agent. Prompts include selected schema context, worked
 NL-to-Cypher examples, and initially a bounded application list or lookup context.
 
 ## Open
-
-### Platform representation
-
-Decide whether `Platform` is:
-
-- A separate node related to interfaces/integrations.
-- A property of an integration or interface.
-- A hybrid: normalized platform node plus denormalized source properties.
-
-This needs use-case-driven analysis before selection.
 
 ### Identity resolution
 
@@ -86,9 +87,3 @@ The mapping file format, confidence model, and review workflow remain open.
 Define which evidence establishes that an interface or integration carries an
 information object: naming, tags, descriptions, message schemas, manual mapping,
 or semantic inference.
-
-### Graph invariants
-
-Define constraints and ingestion validation for the rule that every Integration
-connects exactly two interfaces, including whether source and target direction is
-mandatory and how bidirectional exchanges are represented.
