@@ -39,6 +39,10 @@ These instructions apply to the entire repository.
 
 - Make repository changes on a focused branch.
 - Run relevant local tests and lint checks.
+- After making and validating changes, stop and present the diff and repository
+  status for review. Wait for the user to explicitly say `commit` before
+  committing, pushing, creating or merging a pull request, cleaning up the
+  branch, or synchronizing local `main`.
 - Commit and push the branch, create a pull request, and wait for GitHub Actions.
 - Merge only after required checks pass.
 - Record consequential AWS architecture choices in `docs/decisions.md`.

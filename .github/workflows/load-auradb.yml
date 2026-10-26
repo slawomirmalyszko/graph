@@ -1,0 +1,66 @@
+name: Load AuraDB seed
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_load:
+        description: Confirm loading the canonical seed into DEV AuraDB
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auradb-dev-seed
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate canonical seed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-auradb.txt
+
+      - name: Validate seed without a database connection
+        env:
+          PYTHONPATH: src
+        run: python -m integration_catalogue.seed --validate-only
+
+  load:
+    name: Load DEV AuraDB
+    needs: validate
+    if: github.ref == 'refs/heads/main' && inputs.confirm_load
+    runs-on: ubuntu-latest
+    environment: auradb-dev
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-auradb.txt
+
+      - name: Install AuraDB driver
+        run: python -m pip install --requirement requirements-auradb.txt
+
+      - name: Load and verify canonical seed
+        env:
+          PYTHONPATH: src
+          NEO4J_URI: ${{ secrets.NEO4J_URI }}
+          NEO4J_USERNAME: ${{ secrets.NEO4J_USERNAME }}
+          NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
+        run: python -m integration_catalogue.seed
+
