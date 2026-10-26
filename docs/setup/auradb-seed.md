@@ -47,6 +47,24 @@ The loader does not delete records absent from the seed. This protects data
 created by future extractors. A separate, explicitly approved reconciliation
 operation will be needed if Git is later required to remove stale projections.
 
+## Load through GitHub Actions
+
+Create a GitHub Environment named `auradb-dev`, optionally configure required
+reviewers, and add these environment secrets:
+
+- `NEO4J_URI`
+- `NEO4J_USERNAME`
+- `NEO4J_PASSWORD`
+
+After the workflow is merged to `main`, open **Actions**, select **Load AuraDB
+seed**, choose **Run workflow**, and enable the confirmation input. The database
+load job is deliberately restricted to `main`; dispatches from other branches
+can validate the seed but cannot access the load step.
+
+The workflow has read-only repository permissions, serializes DEV loads, and
+uses the protected `auradb-dev` environment for credentials. Connection values
+are never stored in repository files.
+
 ## Explore the seed
 
 Run the queries in `schema/verification.cypher` individually in Neo4j Browser
