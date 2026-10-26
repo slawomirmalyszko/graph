@@ -72,6 +72,15 @@ The first version uses focused natural-language-to-Cypher generation rather than
 a general autonomous agent. Prompts include selected schema context, worked
 NL-to-Cypher examples, and initially a bounded application list or lookup context.
 
+### Bedrock text-generation adapter
+
+The first NL-to-Cypher implementation uses the Amazon Bedrock Converse API with
+Amazon Nova Lite (`amazon.nova-lite-v1:0`) directly in `eu-north-1`. Direct
+regional invocation avoids cross-region routing. The model remains configurable
+for evaluation, but the AWS region is fixed to Stockholm. The adapter uses the
+standard boto3 credential chain, adaptive retries, explicit timeouts, and an
+explicit output-token limit. Credentials are never application configuration.
+
 ## Open
 
 ### Identity resolution
