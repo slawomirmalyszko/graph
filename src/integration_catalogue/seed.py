@@ -79,10 +79,23 @@ RELATIONSHIP_SPECIFICATIONS = {
     "TARGETS": ("Integration", "Interface"),
     "CARRIES": ("Integration", "InformationObject"),
 }
+INVALID_PLATFORMS_QUERY = """
+MATCH (integration:Integration)
+OPTIONAL MATCH (platform:Application {apm_id: integration.platform_apm_id})
+WITH integration, platform
+WHERE platform IS NULL
+   OR NOT platform.application_role IN ['integration_platform', 'both']
+RETURN integration.id AS id, integration.platform_apm_id AS platform_apm_id
+"""
 
 
 class SeedValidationError(ValueError):
     """Raised when seed data violates the canonical graph contract."""
+
+
+def report_progress(message: str) -> None:
+    """Emit a credential-free progress message immediately for CI logs."""
+    print(f"[auradb-seed] {message}", flush=True)
 
 
 def read_seed(path: Path = DEFAULT_SEED_PATH) -> dict[str, Any]:
@@ -214,22 +227,47 @@ def iter_cypher_statements(cypher: str) -> Iterable[str]:
 def load_seed(driver: Any, seed: Mapping[str, Any], constraints_path: Path) -> None:
     """Create constraints and replace the canonical projection idempotently."""
     validate_seed(seed)
+    node_total = sum(len(seed["nodes"].get(label, [])) for label in NODE_SPECIFICATIONS)
+    relationship_total = sum(
+        len(seed["relationships"].get(relationship_type, []))
+        for relationship_type in RELATIONSHIP_SPECIFICATIONS
+    )
+    report_progress(
+        f"Seed validated: {node_total} nodes and {relationship_total} relationships"
+    )
+
     with driver.session() as session:
-        for statement in iter_cypher_statements(constraints_path.read_text(encoding="utf-8")):
-            session.run(statement).consume()
+        statements = list(
+            iter_cypher_statements(constraints_path.read_text(encoding="utf-8"))
+        )
+        schema_objects_created = 0
+        report_progress(f"Applying {len(statements)} constraint/index statements")
+        for statement in statements:
+            summary = session.run(statement).consume()
+            schema_objects_created += summary.counters.constraints_added
+            schema_objects_created += summary.counters.indexes_added
+        report_progress(
+            "Schema ready: "
+            f"{len(statements)} statements processed, {schema_objects_created} objects created"
+        )
 
         for label in NODE_SPECIFICATIONS:
             rows = seed["nodes"].get(label, [])
             if rows:
-                session.run(
+                summary = session.run(
                     f"UNWIND $rows AS row MERGE (node:{label} {{id: row.id}}) SET node = row",
                     rows=rows,
                 ).consume()
+                created = summary.counters.nodes_created
+                report_progress(
+                    f"{label} nodes processed: {len(rows)} "
+                    f"(created: {created}, matched/updated: {len(rows) - created})"
+                )
 
         for relationship_type, (from_label, to_label) in RELATIONSHIP_SPECIFICATIONS.items():
             rows = seed["relationships"].get(relationship_type, [])
             if rows:
-                session.run(
+                summary = session.run(
                     f"""
                     UNWIND $rows AS row
                     MATCH (source:{from_label} {{id: row.from}})
@@ -239,6 +277,11 @@ def load_seed(driver: Any, seed: Mapping[str, Any], constraints_path: Path) -> N
                     """,
                     rows=rows,
                 ).consume()
+                created = summary.counters.relationships_created
+                report_progress(
+                    f"{relationship_type} relationships processed: {len(rows)} "
+                    f"(created: {created}, matched/updated: {len(rows) - created})"
+                )
 
 
 def verify_database(driver: Any) -> dict[str, Any]:
@@ -266,15 +309,7 @@ def verify_database(driver: Any) -> dict[str, Any]:
             RETURN integration.id AS id, source_count, target_count
             """
         ).data()
-        invalid_platforms = session.run(
-            """
-            MATCH (integration:Integration)
-            OPTIONAL MATCH (platform:Application {apm_id: integration.platform_apm_id})
-            WHERE platform IS NULL
-               OR NOT platform.application_role IN ['integration_platform', 'both']
-            RETURN integration.id AS id, integration.platform_apm_id AS platform_apm_id
-            """
-        ).data()
+        invalid_platforms = session.run(INVALID_PLATFORMS_QUERY).data()
     if invalid_topology or invalid_platforms:
         raise RuntimeError(
             f"Database verification failed: topology={invalid_topology}, "
@@ -322,11 +357,20 @@ def main() -> int:
         auth=(os.environ["NEO4J_USERNAME"], os.environ["NEO4J_PASSWORD"]),
     )
     try:
+        report_progress("Connecting to AuraDB")
         driver.verify_connectivity()
+        report_progress("AuraDB connection verified")
         load_seed(driver, seed, arguments.constraints)
+        report_progress("Verifying database topology and platform references")
         verification = verify_database(driver)
+        count_summary = ", ".join(
+            f"{record['label']}={record['count']}"
+            for record in sorted(verification["counts"], key=lambda record: record["label"])
+        )
+        report_progress(f"Database verification passed: {count_summary}")
     finally:
         driver.close()
+        report_progress("AuraDB connection closed")
     print(json.dumps(verification, indent=2))
     return 0
 
