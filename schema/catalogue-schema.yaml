@@ -1,0 +1,189 @@
+schema_version: 1.0.0
+model: neo4j_property_graph
+description: Canonical graph contract for the Integration Catalogue.
+
+conventions:
+  property_names: snake_case
+  enum_values: snake_case
+  canonical_id:
+    type: string
+    immutable: true
+    pattern: "^(app|iface|integration|info-object):[a-z0-9][a-z0-9._:-]*$"
+    description: Repository-controlled identifier; names are never identifiers.
+  extension_properties:
+    allowed: true
+    name_pattern: "^x_[a-z0-9]+_[a-z0-9_]+$"
+    allowed_value_types: [string, integer, float, boolean, date, datetime, list_of_scalar]
+    description: >-
+      Source-specific properties must be namespaced, for example
+      x_kong_route_path. Neo4j node properties cannot contain nested objects.
+
+enums:
+  lifecycle_status: [planned, active, deprecated, decommissioning, decommissioned, unknown]
+  application_role: [business_application, integration_platform, both]
+  interface_type:
+    - application_endpoint
+    - api
+    - api_operation
+    - event
+    - topic
+    - queue
+    - file_endpoint
+    - service
+    - process
+    - mapping
+    - other
+  discovery_state: [observed, missing, manual]
+
+nodes:
+  Application:
+    description: ServiceNow-managed business application or integration platform.
+    required_properties:
+      id: {type: string, format: canonical_id, unique: true, immutable: true}
+      apm_id:
+        type: string
+        min_length: 1
+        unique: true
+        immutable: true
+        authoritative_source: servicenow
+      name: {type: string, min_length: 1}
+      status: {type: string, enum: lifecycle_status}
+    optional_properties:
+      application_role:
+        type: string
+        enum: application_role
+        default: business_application
+      description: {type: string}
+      business_owner: {type: string}
+      technical_owner: {type: string}
+      support_team: {type: string}
+      aliases: {type: list_of_string}
+
+  Interface:
+    description: >-
+      A technical hand-off point or contract, abstracting APIs, events, topics,
+      queues, file endpoints, services, processes, and mappings.
+    required_properties:
+      id: {type: string, format: canonical_id, unique: true, immutable: true}
+      name: {type: string, min_length: 1}
+      interface_type: {type: string, enum: interface_type}
+      status: {type: string, enum: lifecycle_status}
+    optional_properties:
+      description: {type: string}
+      source_system: {type: string}
+      source_id: {type: string}
+      environment: {type: string}
+      discovery_state: {type: string, enum: discovery_state, default: observed}
+      first_seen_at: {type: datetime}
+      last_seen_at: {type: datetime}
+      ingested_at: {type: datetime}
+    conditional_unique_keys:
+      - properties: [source_system, source_id, environment]
+        condition: all_present
+
+  Integration:
+    description: >-
+      Exactly one executable integration hop between one source Interface and
+      one target Interface. End-to-end flows are paths, not Integration nodes.
+    required_properties:
+      id: {type: string, format: canonical_id, unique: true, immutable: true}
+      name: {type: string, min_length: 1}
+      platform_apm_id:
+        type: string
+        min_length: 1
+        references: Application.apm_id
+        reference_condition:
+          property: application_role
+          allowed_values: [integration_platform, both]
+      status: {type: string, enum: lifecycle_status}
+    optional_properties:
+      description: {type: string}
+      source_system: {type: string}
+      source_id: {type: string}
+      environment: {type: string}
+      discovery_state: {type: string, enum: discovery_state, default: observed}
+      first_seen_at: {type: datetime}
+      last_seen_at: {type: datetime}
+      ingested_at: {type: datetime}
+    conditional_unique_keys:
+      - properties: [source_system, source_id, environment]
+        condition: all_present
+    forbidden_topology_properties: [flow_id, sequence]
+
+  InformationObject:
+    description: Business information transported by one or more integrations.
+    required_properties:
+      id: {type: string, format: canonical_id, unique: true, immutable: true}
+      name: {type: string, min_length: 1}
+    optional_properties:
+      description: {type: string}
+      domain: {type: string}
+      schema_version: {type: string}
+      aliases: {type: list_of_string}
+
+relationships:
+  EXPOSES:
+    from: Application
+    to: Interface
+    description: Application offers or owns an interface.
+    cardinality: {per_application: zero_or_many, per_interface: zero_or_one}
+  USES:
+    from: Application
+    to: Interface
+    description: Application consumes an interface.
+    cardinality: {per_application: zero_or_many, per_interface: zero_or_many}
+  SOURCE_OF:
+    from: Interface
+    to: Integration
+    description: Interface is the source hand-off point for an integration hop.
+    cardinality: {per_interface: zero_or_many, per_integration: exactly_one}
+  TARGETS:
+    from: Integration
+    to: Interface
+    description: Integration hop delivers to its target interface.
+    cardinality: {per_integration: exactly_one, per_interface: zero_or_many}
+  CARRIES:
+    from: Integration
+    to: InformationObject
+    description: Integration transports a business information object.
+    cardinality: {per_integration: zero_or_many, per_information_object: zero_or_many}
+    optional_properties:
+      evidence_type: {type: string}
+      confidence: {type: float, minimum: 0.0, maximum: 1.0}
+
+invariants:
+  - id: integration_exactly_two_interfaces
+    description: >-
+      Every Integration has exactly one incoming SOURCE_OF relationship from an
+      Interface and exactly one outgoing TARGETS relationship to an Interface.
+  - id: platform_apm_reference
+    description: >-
+      Every Integration.platform_apm_id resolves to an Application with role
+      integration_platform or both.
+  - id: connectivity_from_relationships
+    description: >-
+      End-to-end topology is derived only from relationships. flow_id, sequence,
+      names, and other properties must not create or order a path.
+  - id: end_to_end_application_boundaries
+    description: >-
+      An end-to-end flow is any valid graph path starting and ending at
+      Application nodes and traversing interfaces and one or more integrations.
+  - id: no_platform_nodes
+    description: >-
+      Platform is represented by Integration.platform_apm_id; Platform is not a
+      canonical node label.
+
+legacy_value_mappings:
+  lifecycle_status:
+    live: active
+    retiring: decommissioning
+    to_be_decommissioned: decommissioning
+    retired: decommissioned
+  relationships:
+    PUBLISHES_TO: SOURCE_OF
+    CONSUMED_BY: TARGETS
+  integration_properties:
+    apm_id: platform_apm_id
+  topology_properties:
+    flow_id: migration_metadata_only
+    sequence: migration_metadata_only
