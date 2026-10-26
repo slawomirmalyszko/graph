@@ -1,0 +1,159 @@
+name: Wipe DEV AuraDB
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type WIPE AURADB DEV to permanently delete all graph data
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auradb-dev-seed
+  cancel-in-progress: false
+
+jobs:
+  wipe:
+    name: Permanently delete all DEV graph data
+    if: github.ref == 'refs/heads/main' && inputs.confirmation == 'WIPE AURADB DEV'
+    runs-on: ubuntu-latest
+    environment: auradb-dev
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-auradb.txt
+
+      - name: Install AuraDB driver
+        run: python -m pip install --requirement requirements-auradb.txt
+
+      - name: Reset and verify DEV AuraDB
+        env:
+          NEO4J_URI: ${{ secrets.NEO4J_URI }}
+          NEO4J_USERNAME: ${{ secrets.NEO4J_USERNAME }}
+          NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
+        run: |
+          python - <<'PYTHON'
+          import os
+
+          from neo4j import GraphDatabase
+
+
+          def count_graph(session):
+              nodes = session.run("MATCH (node) RETURN count(node) AS count").single()["count"]
+              relationships = session.run(
+                  "MATCH ()-[relationship]->() RETURN count(relationship) AS count"
+              ).single()["count"]
+              return nodes, relationships
+
+
+          driver = GraphDatabase.driver(
+              os.environ["NEO4J_URI"],
+              auth=(os.environ["NEO4J_USERNAME"], os.environ["NEO4J_PASSWORD"]),
+          )
+          try:
+              print("[auradb-wipe] Connecting to DEV AuraDB", flush=True)
+              driver.verify_connectivity()
+              print("[auradb-wipe] AuraDB connection verified", flush=True)
+              with driver.session() as session:
+                  nodes_before, relationships_before = count_graph(session)
+                  print(
+                      "[auradb-wipe] Before wipe: "
+                      f"nodes={nodes_before}, relationships={relationships_before}",
+                      flush=True,
+                  )
+                  summary = session.run("MATCH (node) DETACH DELETE node").consume()
+                  print(
+                      "[auradb-wipe] Deleted: "
+                      f"nodes={summary.counters.nodes_deleted}, "
+                      f"relationships={summary.counters.relationships_deleted}",
+                      flush=True,
+                  )
+
+                  constraints = [
+                      record["name"]
+                      for record in session.run("SHOW CONSTRAINTS YIELD name RETURN name")
+                  ]
+                  for constraint in constraints:
+                      session.run(
+                          "DROP CONSTRAINT $name IF EXISTS", name=constraint
+                      ).consume()
+                  print(
+                      f"[auradb-wipe] User constraints dropped: {len(constraints)}",
+                      flush=True,
+                  )
+
+                  indexes = [
+                      record["name"]
+                      for record in session.run(
+                          """
+                          SHOW INDEXES YIELD name, type, owningConstraint
+                          WHERE type <> 'LOOKUP' AND owningConstraint IS NULL
+                          RETURN name
+                          """
+                      )
+                  ]
+                  for index in indexes:
+                      session.run("DROP INDEX $name IF EXISTS", name=index).consume()
+                  print(
+                      f"[auradb-wipe] User indexes dropped: {len(indexes)}",
+                      flush=True,
+                  )
+
+                  nodes_after, relationships_after = count_graph(session)
+                  constraints_after = list(
+                      session.run("SHOW CONSTRAINTS YIELD name RETURN name")
+                  )
+                  user_indexes_after = list(
+                      session.run(
+                          """
+                          SHOW INDEXES YIELD name, type, owningConstraint
+                          WHERE type <> 'LOOKUP' AND owningConstraint IS NULL
+                          RETURN name
+                          """
+                      )
+                  )
+                  lookup_indexes = [
+                      record["name"]
+                      for record in session.run(
+                          "SHOW INDEXES YIELD name, type WHERE type = 'LOOKUP' RETURN name"
+                      )
+                  ]
+                  print(
+                      "[auradb-wipe] After wipe: "
+                      f"nodes={nodes_after}, relationships={relationships_after}, "
+                      f"constraints={len(constraints_after)}, "
+                      f"user_indexes={len(user_indexes_after)}",
+                      flush=True,
+                  )
+                  print(
+                      "[auradb-wipe] Preserved system lookup indexes: "
+                      + (", ".join(lookup_indexes) if lookup_indexes else "none"),
+                      flush=True,
+                  )
+                  if any(
+                      (
+                          nodes_after,
+                          relationships_after,
+                          len(constraints_after),
+                          len(user_indexes_after),
+                      )
+                  ):
+                      raise RuntimeError("AuraDB reset verification failed")
+                  print(
+                      "[auradb-wipe] DEV AuraDB is reset to an empty data and user-schema state",
+                      flush=True,
+                  )
+          finally:
+              driver.close()
+              print("[auradb-wipe] AuraDB connection closed", flush=True)
+          PYTHON
+

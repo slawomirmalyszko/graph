@@ -20,6 +20,7 @@ RETURN integration.id AS invalid_integration, source_count, target_count;
 // 3. Every platform reference must resolve to an integration-platform application.
 MATCH (integration:Integration)
 OPTIONAL MATCH (platform:Application {apm_id: integration.platform_apm_id})
+WITH integration, platform
 WHERE platform IS NULL
    OR NOT platform.application_role IN ['integration_platform', 'both']
 RETURN integration.id AS invalid_integration, integration.platform_apm_id AS platform_apm_id;
