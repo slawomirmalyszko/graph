@@ -11,13 +11,17 @@ From the repository root in PowerShell:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -e ".[ui,dev]"
+python -m pip install -e ".[ai,ui,dev]"
 Copy-Item .env.example .env
 ```
 
 Edit `.env` with the connection details downloaded or copied from the AuraDB
 console. The file is ignored by Git. Never paste its values into source files,
 issues, logs, or pull requests.
+
+The Bedrock adapter uses the standard boto3 credential chain. Do not add AWS
+credentials to `.env`; local short-lived AWS authentication will be configured
+separately when Bedrock inference access is available.
 
 ## Run
 
