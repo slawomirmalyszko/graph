@@ -65,6 +65,21 @@ The workflow has read-only repository permissions, serializes DEV loads, and
 uses the protected `auradb-dev` environment for credentials. Connection values
 are never stored in repository files.
 
+## Wipe DEV AuraDB
+
+The separate **Wipe DEV AuraDB** workflow permanently deletes every node and
+relationship in the database. It also drops every user constraint and every
+non-lookup index. Neo4j token lookup indexes are preserved because they are part
+of the normal empty-database structure. The workflow does not filter by label
+and does not reload the seed.
+
+The wipe job runs only from `main`, uses the protected `auradb-dev` environment,
+and requires the exact confirmation text `WIPE AURADB DEV`. It logs data and
+schema counts before and after deletion and fails unless nodes, relationships,
+constraints, and non-lookup indexes are all zero.
+
+This operation is irreversible on AuraDB Free, which does not provide backups.
+
 ## Explore the seed
 
 Run the queries in `schema/verification.cypher` individually in Neo4j Browser
