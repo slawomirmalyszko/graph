@@ -81,6 +81,13 @@ for evaluation, but the AWS region is fixed to Stockholm. The adapter uses the
 standard boto3 credential chain, adaptive retries, explicit timeouts, and an
 explicit output-token limit. Credentials are never application configuration.
 
+### AWS workload authentication
+
+Local development uses `aws login` short-lived, auto-rotating credentials through
+the standard boto3 credential chain. Deployed AWS workloads will use runtime IAM
+roles, and GitHub Actions will use OIDC to assume a narrowly scoped role. Long-lived
+AWS access keys are not used by the application or CI/CD.
+
 ## Open
 
 ### Identity resolution

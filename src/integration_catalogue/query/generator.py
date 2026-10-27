@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, replace
 from typing import Any, Protocol
 
@@ -36,6 +37,17 @@ class GeneratedQueryError(ValueError):
     """Raised when a model response violates the generated-query contract."""
 
 
+def _unwrap_json_response(value: str) -> str:
+    """Accept plain JSON or one Markdown JSON fence without surrounding prose."""
+    stripped = value.strip()
+    if not stripped.startswith("```"):
+        return stripped
+    fenced = re.fullmatch(r"```(?:json)?\s*(\{.*\})\s*```", stripped, re.IGNORECASE | re.DOTALL)
+    if fenced is None:
+        raise GeneratedQueryError("Model response must contain only one JSON object.")
+    return fenced.group(1)
+
+
 @dataclass(frozen=True)
 class GeneratedQuery:
     cypher: str | None
@@ -56,7 +68,7 @@ class GeneratedQuery:
     @classmethod
     def from_json(cls, value: str) -> GeneratedQuery:
         try:
-            payload = json.loads(value)
+            payload = json.loads(_unwrap_json_response(value))
         except json.JSONDecodeError as error:
             raise GeneratedQueryError("Model response must be valid JSON.") from error
 
