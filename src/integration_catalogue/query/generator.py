@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Protocol
 
 from integration_catalogue.query.bedrock import BedrockTextAdapter
@@ -43,6 +43,11 @@ class GeneratedQuery:
     summary: str
     confidence: float
     clarification: str | None
+    model_id: str | None = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+    latency_ms: int | None = None
 
     @property
     def requires_clarification(self) -> bool:
@@ -141,4 +146,11 @@ class BedrockCypherGenerator:
             system_prompt=SYSTEM_PROMPT,
             user_prompt=user_prompt,
         )
-        return GeneratedQuery.from_json(generation.text)
+        return replace(
+            GeneratedQuery.from_json(generation.text),
+            model_id=self._adapter.model_id,
+            input_tokens=generation.input_tokens,
+            output_tokens=generation.output_tokens,
+            total_tokens=generation.total_tokens,
+            latency_ms=generation.latency_ms,
+        )

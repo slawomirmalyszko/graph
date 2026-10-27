@@ -23,6 +23,11 @@ The Bedrock adapter uses the standard boto3 credential chain. Do not add AWS
 credentials to `.env`; local short-lived AWS authentication will be configured
 separately when Bedrock inference access is available.
 
+`QUERY_MODE=mock` is the default. It runs the reviewed example questions without
+AWS credentials while still validating and executing their Cypher against AuraDB.
+Set `QUERY_MODE=bedrock` only when short-lived AWS credentials are available.
+Bedrock failures are shown to the user and never silently fall back to mock mode.
+
 ## Run
 
 ```powershell
