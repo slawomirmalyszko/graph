@@ -13,3 +13,21 @@ build/
 !.env.example
 .idea/
 .vscode/
+
+# Terraform working data and local state. Environment tfvars committed under
+# infra/platform/environments contain non-secret configuration only.
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+*.tfvars.json
+!infra/platform/environments/*.tfvars
+infra/**/backend.hcl
+infra/platform/backends/*.hcl

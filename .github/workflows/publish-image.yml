@@ -1,0 +1,79 @@
+name: Publish image
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target ECR environment
+        required: true
+        type: choice
+        options:
+          - dev
+          - prd
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-image-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.environment }}
+    env:
+      AWS_REGION: eu-north-1
+      ECR_REPOSITORY: integration-catalogue-${{ inputs.environment }}
+      IMAGE_TAG: sha-${{ github.sha }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure short-lived AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}
+          role-session-name: github-image-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2.1.7
+
+      - name: Check for existing immutable image
+        id: image
+        run: |
+          IMAGE_COUNT=$(aws ecr batch-get-image \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids imageTag="$IMAGE_TAG" \
+            --query 'length(images)' \
+            --output text)
+          if [ "$IMAGE_COUNT" = "1" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build image
+        if: steps.image.outputs.exists != 'true'
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: docker build --tag "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
+
+      - name: Push immutable image
+        if: steps.image.outputs.exists != 'true'
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: docker push "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Write deployment summary
+        run: |
+          echo "### Container image published" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Environment: \`$ECR_REPOSITORY\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tag: \`$IMAGE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Already existed: \`${{ steps.image.outputs.exists }}\`" >> "$GITHUB_STEP_SUMMARY"

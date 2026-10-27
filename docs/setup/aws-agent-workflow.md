@@ -60,6 +60,20 @@ AWS MCP access and local shell access are separate:
 - Do not assume that endpoint availability means a particular Bedrock model is
   available; verify the model immediately before implementation.
 
+## Terraform and GitHub Actions
+
+- Terraform roots live under `infra/`; never commit local state, plans, backend
+  configuration, or populated bootstrap variables.
+- Remote state uses the protected S3 bucket created by `infra/bootstrap` and
+  native S3 lock files. `dev` and `prd` use separate state keys.
+- Bootstrap is an explicit manual operation because GitHub OIDC does not exist
+  until the bootstrap root has been applied. Do not automate it with static AWS
+  credentials.
+- GitHub environments named `dev` and `prd` control image publishing. Configure
+  `AWS_GITHUB_OIDC_ROLE_ARN` as a GitHub environment variable, not a secret.
+- Workflows authenticate with GitHub OIDC and publish immutable commit-SHA image
+  tags. They do not receive Terraform permissions in this foundation increment.
+
 ## Verified baseline
 
 On 2026-10-19, read-only checks established that:
