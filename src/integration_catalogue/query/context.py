@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -91,9 +92,10 @@ EXAMPLES: tuple[dict[str, Any], ...] = (
 )
 
 
-def load_catalogue_schema(path: Path = DEFAULT_SCHEMA_PATH) -> dict[str, Any]:
+def load_catalogue_schema(path: Path | None = None) -> dict[str, Any]:
     """Load the Git-controlled canonical catalogue schema."""
-    with path.open(encoding="utf-8") as schema_file:
+    schema_path = path or Path(os.getenv("CATALOGUE_SCHEMA_PATH", DEFAULT_SCHEMA_PATH))
+    with schema_path.open(encoding="utf-8") as schema_file:
         schema = yaml.safe_load(schema_file)
     if not isinstance(schema, dict):
         raise ValueError("Canonical catalogue schema must be a YAML object.")

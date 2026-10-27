@@ -26,3 +26,12 @@ jobs:
         run: ruff check .
       - name: Test
         run: pytest
+
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Build application container
+        run: docker build --tag integration-catalogue:ci .

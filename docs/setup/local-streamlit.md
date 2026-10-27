@@ -71,3 +71,31 @@ user-facing messages; technical exception details remain in the local server log
   session with `aws login`, then select **Refresh connection** in the sidebar.
 - If AuraDB connectivity fails, verify the three `NEO4J_*` settings and outbound
   access to AuraDB's encrypted Bolt endpoint.
+
+## Run in a container
+
+Docker is optional for ordinary local development but is the packaging boundary
+used by the future ECS deployment. Build the image from the repository root:
+
+```powershell
+docker build --tag integration-catalogue:local .
+```
+
+Run it in mock query mode with the ignored local `.env` file:
+
+```powershell
+docker run --rm --publish 8501:8501 --env-file .env integration-catalogue:local
+```
+
+The image:
+
+- runs as a non-root user;
+- listens on port `8501`;
+- exposes `/_stcore/health` as its container health check;
+- contains no `.env` file, credentials, seed data, tests, or Git metadata; and
+- writes application output to stdout and stderr for collection by the container
+  runtime.
+
+The GitHub Actions CI workflow builds the image for every pull request. Deployed
+containers will receive AWS access through their ECS task role and AuraDB settings
+through environment-specific Secrets Manager secrets, not through embedded files.
