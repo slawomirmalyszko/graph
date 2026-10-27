@@ -12,6 +12,7 @@ dependencies = []
 [project.optional-dependencies]
 ai = [
   "boto3>=1.35,<2",
+  "botocore[crt]>=1.35,<2",
   "PyYAML>=6,<7",
 ]
 ui = [

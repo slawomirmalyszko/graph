@@ -83,6 +83,17 @@ def test_contract_accepts_clarification() -> None:
     assert result.cypher is None
 
 
+def test_contract_accepts_single_json_code_fence() -> None:
+    result = GeneratedQuery.from_json(f"```json\n{query_response()}\n```")
+
+    assert result.cypher == "MATCH (app:Application) RETURN app LIMIT $limit"
+
+
+def test_contract_rejects_fenced_json_with_surrounding_commentary() -> None:
+    with pytest.raises(GeneratedQueryError, match="valid JSON"):
+        GeneratedQuery.from_json(f"Here is the query:\n```json\n{query_response()}\n```")
+
+
 @pytest.mark.parametrize(
     ("response", "message"),
     [

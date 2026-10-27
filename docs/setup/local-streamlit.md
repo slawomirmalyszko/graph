@@ -28,6 +28,17 @@ AWS credentials while still validating and executing their Cypher against AuraDB
 Set `QUERY_MODE=bedrock` only when short-lived AWS credentials are available.
 Bedrock failures are shown to the user and never silently fall back to mock mode.
 
+For local Bedrock mode, install AWS CLI 2.32 or later and authenticate with:
+
+```powershell
+aws login
+```
+
+The project AI dependencies include AWS CRT support so boto3 can consume these
+short-lived, auto-rotating login credentials. Do not place credentials in `.env`.
+Local login sessions last up to 12 hours and can be renewed by running `aws login`
+again.
+
 ## Run
 
 ```powershell
