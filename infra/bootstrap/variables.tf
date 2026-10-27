@@ -20,26 +20,12 @@ variable "state_bucket_name" {
   type        = string
 }
 
-variable "github_owner" {
-  description = "GitHub repository owner name."
+variable "publisher_access_expires_at" {
+  description = "UTC timestamp after which the GitHub ECR publisher policy stops authorizing requests. Rotate within 180 days."
   type        = string
-  default     = "slawomirmalyszko"
-}
 
-variable "github_owner_id" {
-  description = "Immutable public GitHub repository owner ID."
-  type        = string
-  default     = "118607047"
-}
-
-variable "github_repository" {
-  description = "GitHub repository name."
-  type        = string
-  default     = "graph"
-}
-
-variable "github_repository_id" {
-  description = "Immutable public GitHub repository ID."
-  type        = string
-  default     = "1423602721"
+  validation {
+    condition     = can(timecmp(var.publisher_access_expires_at, "1970-01-01T00:00:00Z"))
+    error_message = "publisher_access_expires_at must be an RFC 3339 timestamp."
+  }
 }

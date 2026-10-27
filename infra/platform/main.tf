@@ -3,15 +3,15 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project     = "Integration Catalogue"
-      Environment = var.environment
-      ManagedBy   = "Terraform"
+      Project   = "Integration Catalogue"
+      Scope     = "Shared"
+      ManagedBy = "Terraform"
     }
   }
 }
 
 resource "aws_ecr_repository" "application" {
-  name                 = "${var.project_name}-${var.environment}"
+  name                 = var.project_name
   image_tag_mutability = "IMMUTABLE"
   force_delete         = false
 

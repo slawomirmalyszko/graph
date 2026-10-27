@@ -43,8 +43,10 @@ AWS MCP access and local shell access are separate:
   diagnostic specifically needs credentials. Install AWS CLI 2.32 or later and
   run `aws login` after explicit user confirmation. This produces short-lived,
   automatically rotating credentials.
-- **GitHub Actions** uses GitHub OIDC to assume a narrowly scoped AWS role. It
-  must not use long-lived IAM access keys.
+- **GitHub Actions** normally uses GitHub OIDC. The simplified project blocks
+  IAM OIDC-provider creation, so the image-publishing workflow has one approved
+  exception: a protected, expiring IAM-user key with ECR push-only permissions.
+  No other workflow or AWS permission may use that key.
 
 ## Safety rules
 
@@ -65,14 +67,16 @@ AWS MCP access and local shell access are separate:
 - Terraform roots live under `infra/`; never commit local state, plans, backend
   configuration, or populated bootstrap variables.
 - Remote state uses the protected S3 bucket created by `infra/bootstrap` and
-  native S3 lock files. `dev` and `prd` use separate state keys.
-- Bootstrap is an explicit manual operation because GitHub OIDC does not exist
-  until the bootstrap root has been applied. Do not automate it with static AWS
-  credentials.
-- GitHub environments named `dev` and `prd` control image publishing. Configure
-  `AWS_GITHUB_OIDC_ROLE_ARN` as a GitHub environment variable, not a secret.
-- Workflows authenticate with GitHub OIDC and publish immutable commit-SHA image
-  tags. They do not receive Terraform permissions in this foundation increment.
+  native S3 lock files. Runtime DEV and PRD state will remain separate when
+  those resources are introduced.
+- Bootstrap remains an explicit manual operation using the confirmed short-lived
+  local AWS session. The static publisher key never receives Terraform access.
+- The protected GitHub environment `image-publishing` contains only
+  `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` for the non-console publisher.
+- The publisher policy is scoped to the shared ECR repository and expires at a
+  reviewed UTC timestamp no more than 180 days after apply.
+- Workflows publish immutable commit-SHA image tags. They cannot deploy ECS or
+  change infrastructure.
 
 ## Verified baseline
 

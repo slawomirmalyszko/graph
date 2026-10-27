@@ -2,16 +2,7 @@ data "aws_caller_identity" "current" {}
 data "aws_partition" "current" {}
 
 locals {
-  environments = toset(["dev", "prd"])
-  repository   = "${var.github_owner}@${var.github_owner_id}/${var.github_repository}@${var.github_repository_id}"
-  oidc_subjects = [
-    for environment in local.environments :
-    "repo:${local.repository}:environment:${environment}"
-  ]
-  ecr_repository_arns = {
-    for environment in local.environments :
-    environment => "arn:${data.aws_partition.current.partition}:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/${var.project_name}-${environment}"
-  }
+  ecr_repository_arn = "arn:${data.aws_partition.current.partition}:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/${var.project_name}"
 }
 
 provider "aws" {
@@ -115,55 +106,28 @@ resource "aws_s3_bucket_policy" "terraform_state" {
   policy = data.aws_iam_policy_document.state_bucket.json
 }
 
-resource "aws_iam_openid_connect_provider" "github" {
-  url = "https://token.actions.githubusercontent.com"
+resource "aws_iam_user" "github_image_publisher" {
+  name          = "${var.project_name}-github-ecr-publisher"
+  path          = "/automation/"
+  force_destroy = false
 
-  client_id_list = ["sts.amazonaws.com"]
-}
-
-data "aws_iam_policy_document" "github_assume_role" {
-  for_each = local.environments
-
-  statement {
-    effect  = "Allow"
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-
-    principals {
-      type        = "Federated"
-      identifiers = [aws_iam_openid_connect_provider.github.arn]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "token.actions.githubusercontent.com:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${local.repository}:environment:${each.key}"]
-    }
+  tags = {
+    Purpose = "GitHub ECR image publishing"
   }
 }
 
-resource "aws_iam_role" "github_image_publisher" {
-  for_each = local.environments
-
-  name                 = "${var.project_name}-github-${each.key}-image-publisher"
-  description          = "Pushes immutable ${each.key} images from GitHub Actions."
-  assume_role_policy   = data.aws_iam_policy_document.github_assume_role[each.key].json
-  max_session_duration = 3600
-}
-
 data "aws_iam_policy_document" "github_image_publisher" {
-  for_each = local.environments
-
   statement {
     sid       = "GetEcrAuthorizationToken"
     effect    = "Allow"
     actions   = ["ecr:GetAuthorizationToken"]
     resources = ["*"]
+
+    condition {
+      test     = "DateLessThan"
+      variable = "aws:CurrentTime"
+      values   = [var.publisher_access_expires_at]
+    }
   }
 
   statement {
@@ -177,14 +141,18 @@ data "aws_iam_policy_document" "github_image_publisher" {
       "ecr:PutImage",
       "ecr:UploadLayerPart",
     ]
-    resources = [local.ecr_repository_arns[each.key]]
+    resources = [local.ecr_repository_arn]
+
+    condition {
+      test     = "DateLessThan"
+      variable = "aws:CurrentTime"
+      values   = [var.publisher_access_expires_at]
+    }
   }
 }
 
-resource "aws_iam_role_policy" "github_image_publisher" {
-  for_each = local.environments
-
+resource "aws_iam_user_policy" "github_image_publisher" {
   name   = "ecr-image-publish"
-  role   = aws_iam_role.github_image_publisher[each.key].id
-  policy = data.aws_iam_policy_document.github_image_publisher[each.key].json
+  user   = aws_iam_user.github_image_publisher.name
+  policy = data.aws_iam_policy_document.github_image_publisher.json
 }

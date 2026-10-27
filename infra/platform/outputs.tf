@@ -1,5 +1,5 @@
 output "ecr_repository_arn" {
-  description = "ARN of the environment-specific application image repository."
+  description = "ARN of the shared immutable application image repository."
   value       = aws_ecr_repository.application.arn
 }
 

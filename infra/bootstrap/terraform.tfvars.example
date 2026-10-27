@@ -1,1 +1,2 @@
-state_bucket_name = "replace-with-a-globally-unique-state-bucket-name"
+state_bucket_name           = "replace-with-a-globally-unique-state-bucket-name"
+publisher_access_expires_at = "2027-04-25T00:00:00Z"

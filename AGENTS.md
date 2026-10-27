@@ -30,8 +30,13 @@ These instructions apply to the entire repository.
 - Use local `aws login` only when local CLI/SDK credentials are actually needed.
   It requires AWS CLI 2.32 or later and explicit user confirmation. Prefer its
   short-lived credentials over long-lived access keys.
-- GitHub Actions must authenticate to AWS using OIDC and a narrowly scoped IAM
-  role. Never store AWS access keys in GitHub secrets.
+- GitHub Actions normally authenticate to AWS using OIDC and a narrowly scoped
+  IAM role. The simplified AWS project blocks IAM OIDC-provider creation, so
+  this repository permits one documented exception: a non-console IAM user's
+  long-lived key may be stored only in the protected `image-publishing` GitHub
+  environment and may grant only ECR image-push access to the project registry.
+  The key must expire or rotate within 180 days and must never receive Terraform,
+  ECS deployment, Bedrock, Secrets Manager, S3, or IAM permissions.
 - Store runtime application secrets in AWS Secrets Manager when introduced;
   repository files contain only secret names and configuration examples.
 
