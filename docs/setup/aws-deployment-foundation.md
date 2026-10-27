@@ -11,6 +11,7 @@ resources.
 | --- | --- | --- |
 | `infra/bootstrap` | S3 state bucket and GitHub ECR publisher user/policy | Bootstrapped locally, then migrated to S3 |
 | `infra/platform` | Shared immutable application image repository | Shared S3 state key |
+| `infra/environments/dev` | DEV VPC, ALB, ECS/Fargate runtime, roles, and logs | Dedicated DEV S3 state key |
 
 DEV and PRD will run the same commit-addressed image. Their runtime settings and
 secrets remain environment-specific and are not baked into the image.
@@ -57,6 +58,8 @@ terraform -chdir=infra/bootstrap init -backend=false
 terraform -chdir=infra/bootstrap validate
 terraform -chdir=infra/platform init -backend=false
 terraform -chdir=infra/platform validate
+terraform -chdir=infra/environments/dev init -backend=false
+terraform -chdir=infra/environments/dev validate
 ```
 
 Provider installation may access the Terraform registry but these validation
