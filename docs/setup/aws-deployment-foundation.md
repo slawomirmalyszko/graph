@@ -75,11 +75,14 @@ terraform -chdir=infra/bootstrap plan -out bootstrap.tfplan
 terraform -chdir=infra/bootstrap apply bootstrap.tfplan
 ```
 
-No access key exists after this apply. Copy `backend.hcl.example` to the ignored
-`backend.hcl`, insert the created bucket name, and migrate bootstrap state:
+No access key exists after this apply. The first apply uses local state because
+the S3 bucket cannot be its own backend before it exists. Copy both backend
+examples to their ignored local names, insert the created bucket name, and then
+migrate bootstrap state:
 
 ```powershell
 Copy-Item infra/bootstrap/backend.hcl.example infra/bootstrap/backend.hcl
+Copy-Item infra/bootstrap/backend_override.tf.example infra/bootstrap/backend_override.tf
 terraform -chdir=infra/bootstrap init -migrate-state -backend-config=backend.hcl
 ```
 
