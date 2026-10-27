@@ -1,0 +1,5 @@
+bucket       = "replace-with-the-created-state-bucket-name"
+key          = "runtime/dev/terraform.tfstate"
+region       = "eu-north-1"
+encrypt      = true
+use_lockfile = true

@@ -137,6 +137,23 @@ privileges. Dependabot monitors the pinned base digest and workflow actions
 weekly so upstream remediations can be adopted by a normal reviewed pull
 request.
 
+### DEV ECS runtime
+
+DEV uses ECS Fargate behind an internet-facing Application Load Balancer in two
+public subnets. Access to the interim HTTP listener is restricted to configured
+public CIDRs. Tasks also use public subnets and public IPs so the demo can reach
+AuraDB and AWS APIs without the fixed hourly cost of a NAT Gateway; task ingress
+is accepted only from the ALB security group.
+
+The shared ECR image is selected by immutable full-commit SHA and resolved to an
+image digest before deployment. ECS execution and application task roles are
+separate: the execution role can pull that image,
+write application logs, and resolve only the environment AuraDB secret; the task
+role can invoke only the selected regional Bedrock model. DEV desired count may
+be zero, which stops Fargate compute but does not stop ALB charges. Cognito,
+HTTPS, a stable domain, and the independently configured PRD runtime remain
+follow-up increments.
+
 ## Open
 
 ### Identity resolution

@@ -67,3 +67,8 @@ jobs:
         run: |
           terraform init -backend=false -input=false
           terraform validate
+      - name: Initialize and validate DEV runtime
+        working-directory: infra/environments/dev
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate

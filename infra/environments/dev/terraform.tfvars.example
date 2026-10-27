@@ -1,0 +1,4 @@
+allowed_ingress_cidrs = ["203.0.113.10/32"]
+image_tag              = "sha-0123456789abcdef0123456789abcdef01234567"
+auradb_secret_arn      = "arn:aws:secretsmanager:eu-north-1:123456789012:secret:integration-catalogue/dev/auradb-example"
+desired_count          = 0
