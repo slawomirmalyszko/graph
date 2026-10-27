@@ -53,14 +53,13 @@ variable "image_tag" {
   }
 }
 
-variable "auradb_secret_arn" {
-  description = "ARN of an existing JSON secret with NEO4J_URI, NEO4J_USERNAME, and NEO4J_PASSWORD keys."
+variable "auradb_secret_name" {
+  description = "Name of an existing JSON secret with NEO4J_URI, NEO4J_USERNAME, and NEO4J_PASSWORD keys."
   type        = string
-  sensitive   = true
 
   validation {
-    condition     = can(regex("^arn:[^:]+:secretsmanager:eu-north-1:[0-9]{12}:secret:", var.auradb_secret_arn))
-    error_message = "auradb_secret_arn must be a Secrets Manager secret ARN in eu-north-1."
+    condition     = can(regex("^[A-Za-z0-9/_+=.@-]+$", var.auradb_secret_name))
+    error_message = "auradb_secret_name contains unsupported Secrets Manager name characters."
   }
 }
 
