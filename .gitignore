@@ -15,7 +15,7 @@ build/
 .vscode/
 
 # Terraform working data and local state. Environment tfvars committed under
-# infra/platform/environments contain non-secret configuration only.
+# Committed example files contain non-secret configuration only.
 **/.terraform/*
 *.tfstate
 *.tfstate.*
@@ -28,6 +28,4 @@ override.tf.json
 *_override.tf.json
 *.tfvars
 *.tfvars.json
-!infra/platform/environments/*.tfvars
 infra/**/backend.hcl
-infra/platform/backends/*.hcl

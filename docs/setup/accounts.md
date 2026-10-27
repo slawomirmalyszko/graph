@@ -24,8 +24,9 @@ underway.
 - [ ] Require pull requests and prevent force pushes to `main`.
 - [ ] Enable Dependabot alerts and secret scanning where available.
 - [ ] Confirm GitHub Actions has read-only default repository permissions.
-- [ ] Use GitHub Environments for later deployment separation.
-- [ ] Use GitHub OIDC for AWS; do not create long-lived AWS access keys.
+- [ ] Create the protected `image-publishing` GitHub Environment.
+- [ ] Store the constrained demo account's ECR-only publisher key only in that
+      environment and rotate it within 180 days.
 
 ## AWS account checklist
 
@@ -36,7 +37,8 @@ underway.
 - [ ] Create a small budget and multiple cost alerts before provisioning.
 - [ ] Enable Free Tier and billing alerts.
 - [ ] Use IAM Identity Center or another administrative identity for daily use.
-- [ ] Later create a narrowly scoped GitHub Actions OIDC role.
+- [ ] Prefer GitHub OIDC if the account later permits IAM provider creation;
+      until then keep the documented publisher exception limited to ECR push.
 - [ ] Record the account ID and region in a local uncommitted `.env`, never here.
 
 The new AWS experience currently assigns European projects to Europe

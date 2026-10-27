@@ -15,16 +15,6 @@ variable "project_name" {
   default     = "integration-catalogue"
 }
 
-variable "environment" {
-  description = "Deployment environment."
-  type        = string
-
-  validation {
-    condition     = contains(["dev", "prd"], var.environment)
-    error_message = "Environment must be either dev or prd."
-  }
-}
-
 variable "untagged_image_retention_days" {
   description = "Days to retain untagged images before automatic expiry."
   type        = number

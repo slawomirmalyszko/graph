@@ -85,32 +85,41 @@ explicit output-token limit. Credentials are never application configuration.
 
 Local development uses `aws login` short-lived, auto-rotating credentials through
 the standard boto3 credential chain. Deployed AWS workloads will use runtime IAM
-roles, and GitHub Actions will use OIDC to assume a narrowly scoped role. Long-lived
-AWS access keys are not used by the application or CI/CD.
+roles. GitHub Actions normally uses OIDC, but the simplified project blocks IAM
+OIDC-provider creation. The ECR-only, expiring publisher exception is documented
+under AWS deployment foundation below. Long-lived keys are not used by the
+application, Terraform, deployment automation, or any other CI/CD permission.
 
 ### AWS deployment foundation
 
 AWS infrastructure is defined with Terraform and split into two roots:
 
-- `infra/bootstrap` owns the S3 remote-state bucket, GitHub OIDC provider, and
-  narrowly scoped image-publisher role.
-- `infra/platform` owns environment-specific resources and stores independent
-  `dev` and `prd` state objects in the shared bucket.
+- `infra/bootstrap` owns the S3 remote-state bucket and narrowly scoped GitHub
+  ECR publisher identity.
+- `infra/platform` initially owns the shared application image repository. DEV
+  and PRD runtime resources will use separate state objects when introduced.
 
 Terraform uses native S3 lock files rather than the deprecated DynamoDB locking
 mechanism. The state bucket has versioning, encryption, blocked public access,
 TLS-only access, and deletion protection.
 
-GitHub Actions publishes images only from `main`, through protected `dev` or
-`prd` GitHub environments. Each environment has a separate AWS role. Its trust
-uses the repository's immutable GitHub owner and repository IDs plus the exact
-environment subject, and its permissions cover only that environment's ECR
-repository. Neither role can deploy infrastructure. Images use immutable
-commit-SHA tags.
+The simplified AWS project applies an AWS-managed policy that blocks creation of
+the GitHub IAM OIDC provider. For this demo account only, GitHub Actions uses a
+dedicated non-console IAM user's long-lived access key from the protected
+`image-publishing` GitHub environment. The user can obtain an ECR authorization
+token and push only to the project repository. It cannot deploy infrastructure
+or ECS services and has no Bedrock, Secrets Manager, S3, or IAM permissions.
+Its policy has a UTC expiry and the key must rotate within 180 days. The key is
+created manually, never by Terraform, so its secret is absent from state.
 
-ECR repositories are separate per environment, use immutable tags, basic
-scan-on-push, AES-256 encryption, and automatic expiry of untagged images. Basic
-scanning is selected initially to avoid Amazon Inspector enhanced-scanning cost.
+This is a constrained-account exception, not the target corporate pattern.
+OIDC and temporary credentials remain preferred whenever the account permits
+them. Images use immutable commit-SHA tags and one shared repository so DEV and
+PRD promote the same artifact rather than rebuilding it.
+
+The ECR repository uses immutable tags, basic scan-on-push, AES-256 encryption,
+and automatic expiry of untagged images. Basic scanning is selected initially
+to avoid Amazon Inspector enhanced-scanning cost.
 
 ## Open
 
