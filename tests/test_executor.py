@@ -12,8 +12,11 @@ from integration_catalogue.query.safety import CypherSafetyError, ValidatedQuery
 class FakeRecord:
     values: dict
 
-    def data(self) -> dict:
-        return self.values
+    def keys(self):
+        return self.values.keys()
+
+    def __getitem__(self, key):
+        return self.values[key]
 
 
 class FakeSession:

@@ -32,4 +32,4 @@ def execute_read_query(
 
     with driver.session(**session_options) as session:
         result = session.run(timed_query, query.parameters)
-        return [record.data() for record in result]
+        return [{key: record[key] for key in record.keys()} for record in result]

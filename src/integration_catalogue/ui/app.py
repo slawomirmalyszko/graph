@@ -13,6 +13,7 @@ from integration_catalogue.database import (
 )
 from integration_catalogue.query.pipeline import create_query_generator, query_mode_from_environment
 from integration_catalogue.ui.chat import EXAMPLE_QUESTIONS, ChatResponse, process_question
+from integration_catalogue.ui.graph import render_graph
 
 load_dotenv()
 
@@ -81,7 +82,7 @@ def render_sidebar() -> bool:
     return connected
 
 
-def render_response(response: ChatResponse) -> None:
+def render_response(response: ChatResponse, *, key: str) -> None:
     if response.error:
         st.error(response.summary)
         st.caption(response.error)
@@ -92,12 +93,23 @@ def render_response(response: ChatResponse) -> None:
         return
 
     st.markdown(response.summary)
-    results_tab, cypher_tab = st.tabs(["Results", "Generated Cypher"])
+    tab_names = ["Results", "Generated Cypher"]
+    if response.graph:
+        tab_names.insert(1, "Graph")
+    tabs = st.tabs(tab_names)
+    results_tab = tabs[0]
+    cypher_tab = tabs[-1]
     with results_tab:
         if response.rows:
             st.dataframe(response.rows, width="stretch")
         else:
             st.info("The query returned no rows.")
+    if response.graph:
+        with tabs[1]:
+            st.caption(
+                f"{len(response.graph.nodes)} nodes · {len(response.graph.edges)} relationships"
+            )
+            render_graph(response.graph, key=key)
     with cypher_tab:
         st.code(response.cypher or "", language="cypher")
         st.write("Parameters", response.parameters or {})
@@ -121,12 +133,12 @@ def main() -> None:
     st.session_state.setdefault("messages", [])
     connected = render_sidebar()
 
-    for message in st.session_state.messages:
+    for index, message in enumerate(st.session_state.messages):
         with st.chat_message(message["role"]):
             if message["role"] == "user":
                 st.markdown(message["content"])
             else:
-                render_response(message["response"])
+                render_response(message["response"], key=f"result-graph-{index}")
 
     typed_question = st.chat_input(
         "Ask a question about your integrations...",
