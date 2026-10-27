@@ -88,6 +88,30 @@ the standard boto3 credential chain. Deployed AWS workloads will use runtime IAM
 roles, and GitHub Actions will use OIDC to assume a narrowly scoped role. Long-lived
 AWS access keys are not used by the application or CI/CD.
 
+### AWS deployment foundation
+
+AWS infrastructure is defined with Terraform and split into two roots:
+
+- `infra/bootstrap` owns the S3 remote-state bucket, GitHub OIDC provider, and
+  narrowly scoped image-publisher role.
+- `infra/platform` owns environment-specific resources and stores independent
+  `dev` and `prd` state objects in the shared bucket.
+
+Terraform uses native S3 lock files rather than the deprecated DynamoDB locking
+mechanism. The state bucket has versioning, encryption, blocked public access,
+TLS-only access, and deletion protection.
+
+GitHub Actions publishes images only from `main`, through protected `dev` or
+`prd` GitHub environments. Each environment has a separate AWS role. Its trust
+uses the repository's immutable GitHub owner and repository IDs plus the exact
+environment subject, and its permissions cover only that environment's ECR
+repository. Neither role can deploy infrastructure. Images use immutable
+commit-SHA tags.
+
+ECR repositories are separate per environment, use immutable tags, basic
+scan-on-push, AES-256 encryption, and automatic expiry of untagged images. Basic
+scanning is selected initially to avoid Amazon Inspector enhanced-scanning cost.
+
 ## Open
 
 ### Identity resolution
