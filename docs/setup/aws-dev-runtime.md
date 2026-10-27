@@ -51,6 +51,50 @@ The design avoids NAT Gateway hourly charges. Destroying the DEV Terraform root
 removes the ALB, ECS, VPC, roles, and log group; it does not remove the shared
 ECR repository or the externally managed AuraDB secret.
 
+## Local lifecycle controller
+
+Use `scripts/dev.ps1` to operate DEV without handling Terraform commands or
+plan files manually. The controller always verifies the exact AWS account, the
+`AccountFullAccessRole` session, and `eu-north-1` before it reads or changes the
+runtime. The expected account ID is local configuration and must not be written
+to the repository:
+
+```powershell
+$env:INTEGRATION_CATALOGUE_AWS_ACCOUNT_ID = "your-12-digit-account-id"
+```
+
+Authenticate with `aws login` before using the controller. Terraform runs in
+the pinned Docker image and receives the AWS login cache through a read-only
+mount. Credentials are not printed, copied into the image, or stored in state.
+
+```powershell
+.\scripts\dev.cmd
+.\scripts\dev.cmd status
+.\scripts\dev.cmd start
+.\scripts\dev.cmd stop
+.\scripts\dev.cmd hibernate
+```
+
+The wrapper launches `dev.ps1` with process-scoped `-ExecutionPolicy Bypass`.
+It does not change the user or machine execution policy.
+Running it without a command displays its commands, DEV states, prerequisites,
+confirmation phrases, and examples without making an AWS request.
+
+- `status` performs read-only AWS checks and reports `running`, `paused`,
+  `hibernated`, or `incomplete`.
+- `start` sets the ignored local `desired_count` to `1`. It starts a paused
+  service or recreates a hibernated DEV root.
+- `stop` sets `desired_count` to `0`. It stops Fargate task compute while
+  retaining the ALB and its public IPv4 addresses for a fast restart.
+- `hibernate` destroys the DEV Terraform root. Shared ECR, remote state,
+  AuraDB, and the externally managed Secrets Manager secret remain. The next
+  `start` recreates DEV with a new temporary ALB hostname.
+
+Every mutation writes and displays a saved Terraform plan, then requires an
+exact interactive confirmation before applying it. Plan files are deleted after
+success, cancellation, or failure. `hibernate` also removes the DEV CloudWatch
+log group, so preserve required logs before confirming it.
+
 ## Prepare and validate
 
 Copy the ignored configuration examples and replace placeholders locally:
@@ -58,17 +102,9 @@ Copy the ignored configuration examples and replace placeholders locally:
 ```powershell
 Copy-Item infra/environments/dev/backend.hcl.example infra/environments/dev/backend.hcl
 Copy-Item infra/environments/dev/terraform.tfvars.example infra/environments/dev/terraform.tfvars
-terraform -chdir=infra/environments/dev init -reconfigure -backend-config=backend.hcl
-terraform -chdir=infra/environments/dev plan -out dev.tfplan
+.\scripts\dev.cmd status
 ```
 
-Review the complete plan before apply. Applying with `desired_count = 0` creates
-the runtime foundation but starts no application task. Change the value to `1`
-and apply a reviewed plan to start DEV; return it to `0` to stop task compute.
-
-Cleanup, when explicitly intended:
-
-```powershell
-terraform -chdir=infra/environments/dev plan -destroy -out dev-destroy.tfplan
-terraform -chdir=infra/environments/dev apply dev-destroy.tfplan
-```
+Run `start`, `stop`, or `hibernate` and review the complete plan before entering
+the displayed confirmation phrase. Use direct Terraform commands only for
+diagnosis or recovery when the controller cannot safely classify the runtime.

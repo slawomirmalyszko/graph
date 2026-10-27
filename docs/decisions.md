@@ -154,6 +154,15 @@ be zero, which stops Fargate compute but does not stop ALB charges. Cognito,
 HTTPS, a stable domain, and the independently configured PRD runtime remain
 follow-up increments.
 
+DEV has two explicit inactive states. `paused` retains the ALB and networking
+but sets the ECS service desired count to zero for a fast restart. `hibernated`
+destroys the complete DEV Terraform runtime root while preserving shared ECR,
+remote state, AuraDB, and the externally managed environment secret. A local
+PowerShell lifecycle controller verifies the exact account, assumed role, and
+Stockholm region; generates a saved Terraform plan; and requires an exact
+interactive confirmation for every apply or destroy. This keeps routine cost
+control reproducible without granting Terraform permissions to GitHub Actions.
+
 ## Open
 
 ### Identity resolution
