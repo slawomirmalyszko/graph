@@ -1,0 +1,15 @@
+.git
+.github
+.idea
+.vscode
+.venv
+.env
+.env.*
+__pycache__
+*.egg-info
+*.py[cod]
+.pytest_cache
+.ruff_cache
+docs
+seed
+tests

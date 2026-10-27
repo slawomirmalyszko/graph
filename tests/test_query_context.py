@@ -5,6 +5,16 @@ from integration_catalogue.query.context import (
 )
 
 
+def test_schema_path_can_be_overridden_for_packaged_runtime(
+    monkeypatch, tmp_path
+) -> None:
+    schema_path = tmp_path / "schema.yaml"
+    schema_path.write_text("nodes: {}\n", encoding="utf-8")
+    monkeypatch.setenv("CATALOGUE_SCHEMA_PATH", str(schema_path))
+
+    assert load_catalogue_schema() == {"nodes": {}}
+
+
 def test_schema_context_comes_from_canonical_schema() -> None:
     schema = load_catalogue_schema()
     context = build_schema_context(schema)
