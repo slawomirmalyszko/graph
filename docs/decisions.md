@@ -121,6 +121,22 @@ The ECR repository uses immutable tags, basic scan-on-push, AES-256 encryption,
 and automatic expiry of untagged images. Basic scanning is selected initially
 to avoid Amazon Inspector enhanced-scanning cost.
 
+### Container vulnerability gate
+
+The application container pins the Python base image by digest and removes build
+package-management tools from the runtime after dependency installation. GitHub
+Actions builds and scans the exact local image with Trivy before publishing it.
+The workflow fails for fixable HIGH or CRITICAL OS or Python vulnerabilities;
+an image that fails the gate is not pushed to ECR.
+
+Unfixed distribution findings remain recorded by ECR scanning and in this
+decision; the blocking CI scan excludes them because no remediation is yet
+available. The initial accepted findings affect Debian utilities that the
+non-root application does not invoke, and the image runs without elevated
+privileges. Dependabot monitors the pinned base digest and workflow actions
+weekly so upstream remediations can be adopted by a normal reviewed pull
+request.
+
 ## Open
 
 ### Identity resolution

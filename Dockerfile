@@ -1,4 +1,4 @@
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-bookworm@sha256:6dd8b6dab6b3adc7812bab69eca5dbdc1a5cc690ad28306d234ffb4ef8ac9753
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -18,7 +18,8 @@ COPY src ./src
 COPY schema ./schema
 
 RUN python -m pip install --no-cache-dir --upgrade pip \
-    && python -m pip install --no-cache-dir ".[ai,ui]"
+    && python -m pip install --no-cache-dir ".[ai,ui]" \
+    && python -m pip uninstall --yes pip setuptools wheel
 
 USER catalogue
 
