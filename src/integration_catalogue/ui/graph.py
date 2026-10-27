@@ -11,10 +11,10 @@ from streamlit_agraph import Config, Edge, Node
 from integration_catalogue.query.result_graph import ResultGraph
 
 NODE_STYLES = {
-    "Application": ("#EAB308", 40),
-    "Interface": ("#06B6D4", 25),
-    "Integration": ("#F97316", 30),
-    "InformationObject": ("#EC4899", 22),
+    "Application": ("#EAB308", 32),
+    "Interface": ("#06B6D4", 20),
+    "Integration": ("#F97316", 24),
+    "InformationObject": ("#EC4899", 18),
     "Unknown": ("#94A3B8", 25),
 }
 NODE_LABEL_WIDTH = 18

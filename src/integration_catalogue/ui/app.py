@@ -12,7 +12,12 @@ from integration_catalogue.database import (
     verify_and_summarize,
 )
 from integration_catalogue.query.pipeline import create_query_generator, query_mode_from_environment
-from integration_catalogue.ui.chat import EXAMPLE_QUESTIONS, ChatResponse, process_question
+from integration_catalogue.ui.chat import (
+    EXAMPLE_QUESTIONS,
+    ChatResponse,
+    process_question,
+    rows_to_csv,
+)
 from integration_catalogue.ui.graph import render_graph
 
 load_dotenv()
@@ -90,6 +95,8 @@ def render_response(response: ChatResponse, *, key: str) -> None:
     if response.clarification:
         st.info(response.clarification)
         st.caption(response.summary)
+        if response.confidence is not None:
+            st.caption(f"Confidence: {response.confidence:.0%}")
         return
 
     st.markdown(response.summary)
@@ -102,6 +109,13 @@ def render_response(response: ChatResponse, *, key: str) -> None:
     with results_tab:
         if response.rows:
             st.dataframe(response.rows, width="stretch")
+            st.download_button(
+                "Download CSV",
+                data=rows_to_csv(response.rows),
+                file_name="integration-catalogue-results.csv",
+                mime="text/csv",
+                key=f"{key}-download",
+            )
         else:
             st.info("The query returned no rows.")
     if response.graph:
@@ -116,6 +130,8 @@ def render_response(response: ChatResponse, *, key: str) -> None:
 
     if response.model_id:
         metadata = f"Model: `{response.model_id}`"
+        if response.confidence is not None:
+            metadata += f" · Confidence: {response.confidence:.0%}"
         if response.model_id != "mock:reviewed-examples":
             metadata += (
                 f" · Tokens: {response.input_tokens} input + {response.output_tokens} output "

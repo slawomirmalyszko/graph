@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from integration_catalogue.query.generator import GeneratedQuery
-from integration_catalogue.ui.chat import EXAMPLE_QUESTIONS, process_question
+from integration_catalogue.ui.chat import EXAMPLE_QUESTIONS, process_question, rows_to_csv
 
 
 class FakeGenerator:
@@ -63,6 +63,7 @@ def test_chat_workflow_returns_rows_and_query_metadata() -> None:
     assert response.rows == [{"application_count": 16}]
     assert response.cypher == generated.cypher
     assert response.model_id == "mock:reviewed-examples"
+    assert response.confidence == 1.0
     assert response.error is None
 
 
@@ -86,4 +87,20 @@ def test_chat_workflow_exposes_friendly_failure_without_fallback() -> None:
     response = process_question(FailingGenerator(), FakeDriver(), "Show applications")
 
     assert response.summary == "The question could not be completed."
-    assert response.error == "RuntimeError: model unavailable"
+    assert response.error == (
+        "An unexpected problem occurred. Please retry or rephrase the question."
+    )
+    assert "model unavailable" not in response.error
+
+
+def test_rows_to_csv_preserves_columns_and_serializes_nested_values() -> None:
+    content = rows_to_csv(
+        [
+            {"name": "SAP S/4HANA", "details": {"status": "active"}},
+            {"name": "Salesforce CRM", "count": 2},
+        ]
+    )
+
+    assert content.splitlines()[0] == "name,details,count"
+    assert "SAP S/4HANA" in content
+    assert '""status"": ""active""' in content

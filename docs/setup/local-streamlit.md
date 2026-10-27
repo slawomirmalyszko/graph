@@ -39,6 +39,12 @@ short-lived, auto-rotating login credentials. Do not place credentials in `.env`
 Local login sessions last up to 12 hours and can be renewed by running `aws login`
 again.
 
+The application sends the canonical schema, reviewed NL-to-Cypher examples, and
+the current question to Bedrock for each generation request. It does not send
+AuraDB credentials. Generated Cypher is parameterized and must pass the local
+read-only policy before AuraDB receives it. Queries run through a read-only Neo4j
+session with a timeout and bounded result limit.
+
 ## Run
 
 ```powershell
@@ -47,4 +53,21 @@ python -m streamlit run src/integration_catalogue/ui/app.py
 
 Open `http://localhost:8501`. The application provides controlled NL-to-Cypher
 generation, read-only AuraDB execution, tabular results, generated Cypher, and a
-Graph tab when Neo4j returns nodes, relationships, or paths.
+Graph tab when Neo4j returns nodes, relationships, or paths. Result tables can be
+downloaded as CSV. Bedrock responses show model, confidence, token usage, and
+latency metadata.
+
+Low-confidence questions return a clarification instead of executing Cypher.
+Safety, generation, Bedrock, and AuraDB failures are translated into actionable
+user-facing messages; technical exception details remain in the local server log.
+
+## Modes and troubleshooting
+
+- Use `QUERY_MODE=mock` to verify the UI and AuraDB without invoking Bedrock. Only
+  the reviewed example questions are supported in this mode.
+- Use `QUERY_MODE=bedrock` for natural-language generation through Nova Lite in
+  `eu-north-1`.
+- If Bedrock mode reports that the AI service is unavailable, renew the local
+  session with `aws login`, then select **Refresh connection** in the sidebar.
+- If AuraDB connectivity fails, verify the three `NEO4J_*` settings and outbound
+  access to AuraDB's encrypted Bolt endpoint.

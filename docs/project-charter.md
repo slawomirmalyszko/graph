@@ -46,8 +46,9 @@ The user enters a natural-language discovery question. The application returns:
 
 1. A plain-language summary.
 2. Tabular results where appropriate.
-3. A copyable, read-only generated Cypher query.
-4. A graph visualization where the result is graph-shaped.
+3. CSV export for returned tabular data.
+4. A copyable, read-only generated Cypher query with model and confidence metadata.
+5. A graph visualization where the result is graph-shaped.
 
 Low-confidence or ambiguous questions are clarified or rejected safely. Follow-up
 conversation and suggested questions are later increments, not Sprint 1 scope.

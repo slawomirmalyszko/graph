@@ -13,9 +13,20 @@ Initial discovery questions include:
 
 ## Status
 
-The canonical graph schema and repeatable AuraDB seed process are in place. A
-local Streamlit chat shell now provides read-only AuraDB connectivity; controlled
-natural-language-to-Cypher generation is the next functional increment.
+The local MVP now demonstrates the complete discovery path:
+
+1. Streamlit accepts a natural-language question.
+2. Amazon Nova Lite on Bedrock generates parameterized Cypher from the canonical
+   Git-controlled schema and reviewed examples.
+3. Application safety checks reject unsupported, unbounded, or non-read-only
+   queries before execution.
+4. AuraDB executes the validated query in a read-only session.
+5. The UI presents a summary, normalized table, CSV export, generated Cypher,
+   confidence and model metadata, and a graph when Neo4j returns graph entities.
+
+The canonical schema, synthetic seed data, AuraDB load/reset workflows, mock
+query mode, and live Bedrock query mode are in place. AWS hosting, authentication,
+and source-platform extractors remain later increments.
 
 ## Documentation
 
@@ -33,11 +44,12 @@ Prerequisites: Python 3.12 or later.
 ```bash
 python -m venv .venv
 python -m pip install --upgrade pip
-python -m pip install -e ".[ui,dev]"
+python -m pip install -e ".[ai,ui,dev]"
 pytest
 ruff check .
 python -m streamlit run src/integration_catalogue/ui/app.py
 ```
 
-Never commit credentials or local environment files. Service credentials will
-be documented only by variable name and stored in an appropriate secret store.
+Never commit credentials or local environment files. AuraDB credentials remain
+in the ignored local `.env` file during local development. AWS credentials come
+from short-lived `aws login` sessions and are never stored in the repository.
