@@ -91,12 +91,16 @@ function Assert-LocalConfiguration {
 function Assert-AwsIdentity {
     Assert-CommandAvailable -Name "aws"
 
-    $IdentityJson = & aws sts get-caller-identity --region $AwsRegion --output json 2>$null
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($IdentityJson -join ""))) {
+    try {
+        $Identity = Invoke-AwsJson -Arguments @(
+            "sts", "get-caller-identity",
+            "--region", $AwsRegion,
+            "--output", "json"
+        )
+    }
+    catch {
         throw "AWS authentication is unavailable or expired. Run 'aws login' and retry."
     }
-
-    $Identity = $IdentityJson | ConvertFrom-Json
 
     if ($Identity.Account -ne $ExpectedAccountId) {
         throw "AWS account mismatch. Refusing to operate on the selected account."
@@ -113,30 +117,52 @@ function Assert-AwsIdentity {
 function Invoke-AwsJson {
     param([Parameter(Mandatory = $true)][string[]]$Arguments)
 
-    $Output = & aws @Arguments 2>$null
-    if ($LASTEXITCODE -ne 0) {
-        return $null
+    $PreviousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $Output = & aws @Arguments 2>&1
+        $ExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $PreviousErrorActionPreference
+    }
+
+    if ($ExitCode -ne 0) {
+        $Operation = ($Arguments | Select-Object -First 2) -join " "
+        throw "AWS CLI operation '$Operation' failed with exit code $ExitCode."
     }
 
     if ([string]::IsNullOrWhiteSpace(($Output -join ""))) {
-        return $null
+        throw "AWS CLI returned no JSON output."
     }
 
     return ($Output | ConvertFrom-Json)
 }
 
 function Get-DevRuntimeStatus {
-    $Service = Invoke-AwsJson -Arguments @(
-        "ecs", "describe-services",
-        "--cluster", $ClusterName,
-        "--services", $ServiceName,
+    $Clusters = Invoke-AwsJson -Arguments @(
+        "ecs", "list-clusters",
         "--region", $AwsRegion,
         "--output", "json"
     )
 
-    $LoadBalancer = Invoke-AwsJson -Arguments @(
+    $ClusterArn = @($Clusters.clusterArns) |
+        Where-Object { $_ -match "/$([regex]::Escape($ClusterName))$" } |
+        Select-Object -First 1
+
+    $Service = $null
+    if ($null -ne $ClusterArn) {
+        $Service = Invoke-AwsJson -Arguments @(
+            "ecs", "describe-services",
+            "--cluster", $ClusterArn,
+            "--services", $ServiceName,
+            "--region", $AwsRegion,
+            "--output", "json"
+        )
+    }
+
+    $LoadBalancers = Invoke-AwsJson -Arguments @(
         "elbv2", "describe-load-balancers",
-        "--names", $LoadBalancerName,
         "--region", $AwsRegion,
         "--output", "json"
     )
@@ -149,10 +175,9 @@ function Get-DevRuntimeStatus {
         }
     }
 
-    $LoadBalancerRecord = $null
-    if ($null -ne $LoadBalancer -and $LoadBalancer.LoadBalancers.Count -gt 0) {
-        $LoadBalancerRecord = $LoadBalancer.LoadBalancers[0]
-    }
+    $LoadBalancerRecord = @($LoadBalancers.LoadBalancers) |
+        Where-Object { $_.LoadBalancerName -eq $LoadBalancerName } |
+        Select-Object -First 1
 
     if ($null -eq $ServiceRecord -and $null -eq $LoadBalancerRecord) {
         return [pscustomobject]@{
