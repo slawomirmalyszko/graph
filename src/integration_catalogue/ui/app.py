@@ -1,4 +1,4 @@
-"""Local Streamlit chat shell backed by read-only AuraDB connectivity."""
+"""Local Streamlit chat UI backed by controlled NL-to-Cypher execution."""
 
 from __future__ import annotations
 
@@ -11,7 +11,8 @@ from integration_catalogue.database import (
     create_driver,
     verify_and_summarize,
 )
-from integration_catalogue.ui.chat import EXAMPLE_QUESTIONS, pending_query_response
+from integration_catalogue.query.pipeline import create_query_generator, query_mode_from_environment
+from integration_catalogue.ui.chat import EXAMPLE_QUESTIONS, ChatResponse, process_question
 
 load_dotenv()
 
@@ -22,6 +23,11 @@ st.set_page_config(page_title="Integration Catalogue", page_icon="🔗", layout=
 def get_aura_connection() -> tuple[object, AuraSettings]:
     settings = AuraSettings.from_environment()
     return create_driver(settings), settings
+
+
+@st.cache_resource
+def get_query_generator():
+    return create_query_generator(query_mode_from_environment())
 
 
 def render_connection_status() -> bool:
@@ -56,21 +62,56 @@ def render_sidebar() -> bool:
     with st.sidebar:
         st.header("AuraDB")
         connected = render_connection_status()
-        if st.button("Refresh connection", use_container_width=True):
+        mode = query_mode_from_environment()
+        st.caption(f"Query mode: `{mode}`")
+        if st.button("Refresh connection", width="stretch"):
             st.cache_resource.clear()
             st.rerun()
 
         st.divider()
         st.subheader("Example questions")
         for index, example in enumerate(EXAMPLE_QUESTIONS):
-            if st.button(example, key=f"example-{index}", use_container_width=True):
+            if st.button(example, key=f"example-{index}", width="stretch"):
                 st.session_state.pending_question = example
 
-        if st.button("Clear history", use_container_width=True):
+        if st.button("Clear history", width="stretch"):
             st.session_state.messages = []
             st.session_state.pop("pending_question", None)
             st.rerun()
     return connected
+
+
+def render_response(response: ChatResponse) -> None:
+    if response.error:
+        st.error(response.summary)
+        st.caption(response.error)
+        return
+    if response.clarification:
+        st.info(response.clarification)
+        st.caption(response.summary)
+        return
+
+    st.markdown(response.summary)
+    results_tab, cypher_tab = st.tabs(["Results", "Generated Cypher"])
+    with results_tab:
+        if response.rows:
+            st.dataframe(response.rows, width="stretch")
+        else:
+            st.info("The query returned no rows.")
+    with cypher_tab:
+        st.code(response.cypher or "", language="cypher")
+        st.write("Parameters", response.parameters or {})
+
+    if response.model_id:
+        metadata = f"Model: `{response.model_id}`"
+        if response.model_id != "mock:reviewed-examples":
+            metadata += (
+                f" · Tokens: {response.input_tokens} input + {response.output_tokens} output "
+                f"= {response.total_tokens} total"
+            )
+            if response.latency_ms is not None:
+                metadata += f" · Latency: {response.latency_ms} ms"
+        st.caption(metadata)
 
 
 def main() -> None:
@@ -82,7 +123,10 @@ def main() -> None:
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+            if message["role"] == "user":
+                st.markdown(message["content"])
+            else:
+                render_response(message["response"])
 
     typed_question = st.chat_input(
         "Ask a question about your integrations...",
@@ -91,8 +135,14 @@ def main() -> None:
     question = typed_question or st.session_state.pop("pending_question", None)
     if question and connected:
         st.session_state.messages.append({"role": "user", "content": question})
-        response = pending_query_response(question)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+        driver, settings = get_aura_connection()
+        response = process_question(
+            get_query_generator(),
+            driver,
+            question,
+            database=settings.database,
+        )
+        st.session_state.messages.append({"role": "assistant", "response": response})
         st.rerun()
 
 

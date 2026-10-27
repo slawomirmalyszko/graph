@@ -30,9 +30,6 @@ def execute_read_query(
 
     timed_query = Query(query.cypher, timeout=timeout_seconds)
 
-    def run(transaction: Any) -> list[dict[str, Any]]:
-        result = transaction.run(timed_query, query.parameters)
-        return [record.data() for record in result]
-
     with driver.session(**session_options) as session:
-        return session.execute_read(run)
+        result = session.run(timed_query, query.parameters)
+        return [record.data() for record in result]

@@ -96,6 +96,10 @@ class BedrockTextAdapter:
         self._client = client
         self._settings = settings
 
+    @property
+    def model_id(self) -> str:
+        return self._settings.model_id
+
     def generate(self, *, system_prompt: str, user_prompt: str) -> BedrockGeneration:
         request: dict[str, Any] = {
             "modelId": self._settings.model_id,

@@ -16,7 +16,7 @@ class FakeRecord:
         return self.values
 
 
-class FakeTransaction:
+class FakeSession:
     def __init__(self) -> None:
         self.query: Query | None = None
         self.parameters: dict | None = None
@@ -26,29 +26,20 @@ class FakeTransaction:
         self.parameters = parameters
         return [FakeRecord({"name": "SAP S/4HANA"})]
 
-
-class FakeSession:
-    def __init__(self, transaction: FakeTransaction) -> None:
-        self.transaction = transaction
-
     def __enter__(self):
         return self
 
     def __exit__(self, *_args):
         return None
 
-    def execute_read(self, callback):
-        return callback(self.transaction)
-
-
 class FakeDriver:
     def __init__(self) -> None:
         self.options: dict | None = None
-        self.transaction = FakeTransaction()
+        self.active_session = FakeSession()
 
     def session(self, **options):
         self.options = options
-        return FakeSession(self.transaction)
+        return self.active_session
 
 
 def test_executes_validated_query_in_read_session_with_timeout() -> None:
@@ -62,9 +53,9 @@ def test_executes_validated_query_in_read_session_with_timeout() -> None:
 
     assert rows == [{"name": "SAP S/4HANA"}]
     assert driver.options == {"default_access_mode": READ_ACCESS, "database": "neo4j"}
-    assert str(driver.transaction.query) == query.cypher
-    assert driver.transaction.query.timeout == 3
-    assert driver.transaction.parameters == {"limit": 10}
+    assert str(driver.active_session.query) == query.cypher
+    assert driver.active_session.query.timeout == 3
+    assert driver.active_session.parameters == {"limit": 10}
 
 
 def test_rejects_non_positive_timeout() -> None:

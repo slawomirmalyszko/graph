@@ -15,6 +15,7 @@ from integration_catalogue.query.generator import (
 class FakeTextAdapter:
     def __init__(self, text: str) -> None:
         self.text = text
+        self.model_id = "amazon.nova-lite-v1:0"
         self.system_prompt: str | None = None
         self.user_prompt: str | None = None
 
@@ -63,6 +64,8 @@ def test_generator_builds_contextual_prompt_and_parses_contract() -> None:
     assert result.cypher == "MATCH (app:Application) RETURN app LIMIT $limit"
     assert result.parameters == {"limit": 100}
     assert not result.requires_clarification
+    assert result.model_id == "amazon.nova-lite-v1:0"
+    assert result.total_tokens == 120
 
 
 def test_contract_accepts_clarification() -> None:
