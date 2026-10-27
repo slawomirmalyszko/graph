@@ -35,8 +35,9 @@ Create one DEV Secrets Manager secret manually in `eu-north-1` with JSON keys:
 ```
 
 Do not paste the real values into Terraform, tfvars, terminal output, issues, or
-agent chat. Terraform receives only the secret ARN and ECS resolves the three
-keys when a task starts. Secret rotation requires a new task deployment.
+agent chat. Terraform receives only the stable secret name, resolves its ARN,
+and configures ECS to inject the three keys when a task starts. Secret rotation
+requires a new task deployment.
 
 ## Cost boundary
 

@@ -19,10 +19,10 @@ variable "image_tag" {
   type        = string
 }
 
-variable "auradb_secret_arn" {
-  description = "ARN of the existing DEV AuraDB JSON secret."
+variable "auradb_secret_name" {
+  description = "Name of the existing DEV AuraDB JSON secret."
   type        = string
-  sensitive   = true
+  default     = "integration-catalogue/dev/auradb"
 }
 
 variable "desired_count" {

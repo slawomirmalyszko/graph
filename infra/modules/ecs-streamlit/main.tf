@@ -15,6 +15,10 @@ data "aws_ecr_image" "application" {
   image_tag       = var.image_tag
 }
 
+data "aws_secretsmanager_secret" "auradb" {
+  name = var.auradb_secret_name
+}
+
 locals {
   name               = "${var.project_name}-${var.environment}"
   availability_zones = slice(data.aws_availability_zones.available.names, 0, 2)
@@ -241,7 +245,7 @@ data "aws_iam_policy_document" "execution" {
   statement {
     sid       = "ReadAuraDbConnection"
     actions   = ["secretsmanager:GetSecretValue"]
-    resources = [var.auradb_secret_arn]
+    resources = [data.aws_secretsmanager_secret.auradb.arn]
   }
 }
 
@@ -316,9 +320,9 @@ resource "aws_ecs_task_definition" "app" {
       ]
 
       secrets = [
-        { name = "NEO4J_URI", valueFrom = "${var.auradb_secret_arn}:NEO4J_URI::" },
-        { name = "NEO4J_USERNAME", valueFrom = "${var.auradb_secret_arn}:NEO4J_USERNAME::" },
-        { name = "NEO4J_PASSWORD", valueFrom = "${var.auradb_secret_arn}:NEO4J_PASSWORD::" },
+        { name = "NEO4J_URI", valueFrom = "${data.aws_secretsmanager_secret.auradb.arn}:NEO4J_URI::" },
+        { name = "NEO4J_USERNAME", valueFrom = "${data.aws_secretsmanager_secret.auradb.arn}:NEO4J_USERNAME::" },
+        { name = "NEO4J_PASSWORD", valueFrom = "${data.aws_secretsmanager_secret.auradb.arn}:NEO4J_PASSWORD::" },
       ]
 
       healthCheck = {
