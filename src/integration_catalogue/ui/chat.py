@@ -7,6 +7,7 @@ from typing import Any
 
 from integration_catalogue.query.generator import CypherGenerator
 from integration_catalogue.query.pipeline import QueryOutcome, run_question
+from integration_catalogue.query.result_graph import ResultGraph, build_result_graph, to_table_rows
 
 EXAMPLE_QUESTIONS = (
     "How many applications are there?",
@@ -29,6 +30,7 @@ class ChatResponse:
     total_tokens: int = 0
     latency_ms: int | None = None
     error: str | None = None
+    graph: ResultGraph | None = None
 
 
 def _to_chat_response(outcome: QueryOutcome) -> ChatResponse:
@@ -37,13 +39,14 @@ def _to_chat_response(outcome: QueryOutcome) -> ChatResponse:
         summary=generated.summary,
         cypher=generated.cypher,
         parameters=generated.parameters,
-        rows=outcome.rows,
+        rows=to_table_rows(outcome.rows) if outcome.rows is not None else None,
         clarification=generated.clarification,
         model_id=generated.model_id,
         input_tokens=generated.input_tokens,
         output_tokens=generated.output_tokens,
         total_tokens=generated.total_tokens,
         latency_ms=generated.latency_ms,
+        graph=build_result_graph(outcome.rows) if outcome.rows is not None else None,
     )
 
 

@@ -45,6 +45,6 @@ again.
 python -m streamlit run src/integration_catalogue/ui/app.py
 ```
 
-Open `http://localhost:8501`. The first increment provides the chat shell and a
-fixed, read-only AuraDB catalogue summary. Natural-language-to-Cypher generation
-and graph rendering are intentionally separate follow-up increments.
+Open `http://localhost:8501`. The application provides controlled NL-to-Cypher
+generation, read-only AuraDB execution, tabular results, generated Cypher, and a
+Graph tab when Neo4j returns nodes, relationships, or paths.

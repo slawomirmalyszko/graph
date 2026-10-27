@@ -61,6 +61,7 @@ def test_generator_builds_contextual_prompt_and_parses_contract() -> None:
         "question": "Show applications.",
     }
     assert "Return one JSON object" in (adapter.system_prompt or "")
+    assert "case-insensitive name fragment" in (adapter.system_prompt or "")
     assert result.cypher == "MATCH (app:Application) RETURN app LIMIT $limit"
     assert result.parameters == {"limit": 100}
     assert not result.requires_clarification

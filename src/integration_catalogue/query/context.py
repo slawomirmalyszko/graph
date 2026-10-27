@@ -51,6 +51,43 @@ EXAMPLES: tuple[dict[str, Any], ...] = (
             "clarification": None,
         },
     },
+    {
+        "question": "Show all end-to-end flows that interface with SAP.",
+        "response": {
+            "cypher": (
+                "MATCH path=(application:Application)-"
+                "[:EXPOSES|USES|SOURCE_OF|TARGETS*1..12]-(other:Application) "
+                "WHERE toLower(application.name) CONTAINS toLower($application_name) "
+                "AND application <> other "
+                "RETURN DISTINCT path LIMIT $limit"
+            ),
+            "parameters": {"application_name": "SAP", "limit": 50},
+            "summary": "Find catalogue paths connecting SAP applications to other applications.",
+            "confidence": 0.95,
+            "clarification": None,
+        },
+    },
+    {
+        "question": "Show the full path between Salesforce CRM and SAP S/4HANA.",
+        "response": {
+            "cypher": (
+                "MATCH (source:Application), (target:Application) "
+                "WHERE toLower(source.name) = toLower($source_name) "
+                "AND toLower(target.name) = toLower($target_name) "
+                "MATCH path=shortestPath((source)-"
+                "[:EXPOSES|USES|SOURCE_OF|TARGETS*1..20]-(target)) "
+                "RETURN path LIMIT $limit"
+            ),
+            "parameters": {
+                "source_name": "Salesforce CRM",
+                "target_name": "SAP S/4HANA",
+                "limit": 10,
+            },
+            "summary": "Find the shortest catalogue path between the two applications.",
+            "confidence": 0.95,
+            "clarification": None,
+        },
+    },
 )
 
 

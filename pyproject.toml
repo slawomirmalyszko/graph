@@ -19,6 +19,7 @@ ui = [
   "neo4j>=5.28,<6",
   "python-dotenv>=1.0,<2",
   "streamlit>=1.35,<2",
+  "streamlit-agraph==0.0.45",
 ]
 dev = [
   "pytest>=8.3,<9",

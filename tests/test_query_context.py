@@ -21,4 +21,6 @@ def test_examples_use_parameters_and_canonical_graph_elements() -> None:
     assert "$application_name" in examples
     assert "$object_name" in examples
     assert ":CARRIES" in examples
+    assert "Show all end-to-end flows that interface with SAP." in examples
+    assert "RETURN DISTINCT path" in examples
     assert "CREATE" not in examples

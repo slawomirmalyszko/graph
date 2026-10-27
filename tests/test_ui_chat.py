@@ -18,8 +18,13 @@ class FailingGenerator:
 
 
 class FakeRecord:
-    def data(self) -> dict:
-        return {"application_count": 16}
+    values = {"application_count": 16}
+
+    def keys(self):
+        return self.values.keys()
+
+    def __getitem__(self, key):
+        return self.values[key]
 
 
 class FakeSession:
