@@ -67,8 +67,9 @@ AWS MCP access and local shell access are separate:
 - Terraform roots live under `infra/`; never commit local state, plans, backend
   configuration, or populated bootstrap variables.
 - Remote state uses the protected S3 bucket created by `infra/bootstrap` and
-  native S3 lock files. Runtime DEV and PRD state will remain separate when
-  those resources are introduced.
+  native S3 lock files. Persistent DEV edge, disposable DEV runtime, and future
+  PRD resources use separate state keys so lifecycle operations cannot destroy
+  the stable edge accidentally.
 - Bootstrap remains an explicit manual operation using the confirmed short-lived
   local AWS session. The static publisher key never receives Terraform access.
 - The protected GitHub environment `image-publishing` contains only

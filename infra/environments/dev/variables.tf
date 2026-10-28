@@ -9,11 +9,6 @@ variable "aws_region" {
   }
 }
 
-variable "allowed_ingress_cidrs" {
-  description = "Public CIDRs allowed to access the temporary DEV HTTP endpoint."
-  type        = list(string)
-}
-
 variable "image_tag" {
   description = "Immutable sha-<full-commit-sha> image tag already published to ECR."
   type        = string

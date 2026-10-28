@@ -137,11 +137,13 @@ privileges. Dependabot monitors the pinned base digest and workflow actions
 weekly so upstream remediations can be adopted by a normal reviewed pull
 request.
 
-### DEV ECS runtime
+### DEV runtime and persistent CloudFront edge
 
 DEV uses ECS Fargate behind an internet-facing Application Load Balancer in two
-public subnets. Access to the interim HTTP listener is restricted to configured
-public CIDRs. Tasks also use public subnets and public IPs so the demo can reach
+public subnets. A persistent CloudFront distribution is the stable public HTTPS
+entry point. The ALB accepts HTTP only from the AWS-managed CloudFront
+origin-facing prefix list; it is not exposed directly to end users. Tasks also
+use public subnets and public IPs so the demo can reach
 AuraDB and AWS APIs without the fixed hourly cost of a NAT Gateway; task ingress
 is accepted only from the ALB security group.
 
@@ -149,18 +151,21 @@ The shared ECR image is selected by immutable full-commit SHA and resolved to an
 image digest before deployment. ECS execution and application task roles are
 separate: the execution role can pull that image,
 write application logs, and resolve only the environment AuraDB secret; the task
-role can invoke only the selected regional Bedrock model. DEV desired count may
-be zero, which stops Fargate compute but does not stop ALB charges. Cognito,
-HTTPS, a stable domain, and the independently configured PRD runtime remain
-follow-up increments.
+role can invoke only the selected regional Bedrock model. Cognito, a custom
+domain, and the independently configured PRD runtime remain follow-up increments.
 
-DEV has two explicit inactive states. `paused` retains the ALB and networking
-but sets the ECS service desired count to zero for a fast restart. `hibernated`
-destroys the complete DEV Terraform runtime root while preserving shared ECR,
-remote state, AuraDB, and the externally managed environment secret. A local
-PowerShell lifecycle controller verifies the exact account, assumed role, and
-Stockholm region; generates a saved Terraform plan; and requires an exact
-interactive confirmation for every apply or destroy. This keeps routine cost
+DEV has exactly two operational states. In `active`, CloudFront forwards to a
+healthy runtime. In `maintenance`, a CloudFront Function returns a static HTTP
+503 page and the complete runtime Terraform root is absent. The edge has its own
+state and persists, so destroying and recreating the runtime does not change the
+CloudFront hostname. Activation creates and verifies the runtime before changing
+the edge origin. Maintenance deploys the edge response before destroying the
+runtime. CloudFront caching is disabled and the managed AllViewer origin request
+policy supports Streamlit HTTP, cookies, query strings, and WebSockets.
+
+A local PowerShell lifecycle controller verifies the exact account, assumed
+role, and Stockholm region; generates saved Terraform plans; and requires exact
+interactive confirmation for each apply or destroy. This keeps routine cost
 control reproducible without granting Terraform permissions to GitHub Actions.
 
 ## Open
