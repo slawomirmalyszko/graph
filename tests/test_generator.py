@@ -69,6 +69,24 @@ def test_generator_builds_contextual_prompt_and_parses_contract() -> None:
     assert result.total_tokens == 120
 
 
+def test_generator_selects_examples_for_each_question() -> None:
+    adapter = FakeTextAdapter(query_response())
+    generator = BedrockCypherGenerator(adapter, schema_context="SCHEMA")
+
+    generator.generate("Show all integration flows and their hop count.")
+    first_prompt = json.loads(adapter.user_prompt or "")
+    generator.generate("显示所有具有三个以上接口的应用程序。")
+    second_prompt = json.loads(adapter.user_prompt or "")
+
+    assert "Show all integration flows and their hop count." in first_prompt[
+        "reviewed_examples"
+    ]
+    assert "Display all applications with more than three interfaces." in second_prompt[
+        "reviewed_examples"
+    ]
+    assert first_prompt["reviewed_examples"] != second_prompt["reviewed_examples"]
+
+
 def test_contract_accepts_clarification() -> None:
     result = GeneratedQuery.from_json(
         query_response(

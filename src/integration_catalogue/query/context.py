@@ -9,6 +9,11 @@ from typing import Any
 
 import yaml
 
+from integration_catalogue.query.example_selector import (
+    DEFAULT_MAX_EXAMPLES,
+    select_examples,
+)
+
 DEFAULT_SCHEMA_PATH = Path(__file__).resolve().parents[3] / "schema" / "catalogue-schema.yaml"
 
 EXAMPLES: tuple[dict[str, Any], ...] = (
@@ -331,6 +336,15 @@ def build_schema_context(schema: dict[str, Any] | None = None) -> str:
     return json.dumps(context, indent=2, sort_keys=True)
 
 
-def build_examples_context() -> str:
-    """Render reviewed natural-language-to-Cypher examples."""
-    return json.dumps(EXAMPLES, indent=2, sort_keys=True)
+def build_examples_context(
+    question: str | None = None,
+    *,
+    maximum: int = DEFAULT_MAX_EXAMPLES,
+) -> str:
+    """Render all examples for inspection or a relevant subset for one question."""
+    examples = EXAMPLES if question is None else select_examples(
+        question,
+        EXAMPLES,
+        maximum=maximum,
+    )
+    return json.dumps(examples, indent=2, sort_keys=True)

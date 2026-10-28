@@ -48,17 +48,18 @@ def render_connection_status() -> bool:
         st.error("AuraDB connection failed. Check the local settings and database availability.")
         return False
 
-    st.success("Connected to AuraDB in read-only session mode.")
     first, second, third = st.columns(3)
     first.metric("Catalogue nodes", summary.nodes)
     second.metric("Relationships", summary.relationships)
-    third.metric("Applications", summary.applications)
+    third.metric("Apps", summary.applications)
     with st.expander("Catalogue details"):
         st.write(
             {
+                "apps": summary.applications,
                 "interfaces": summary.interfaces,
                 "integrations": summary.integrations,
                 "information_objects": summary.information_objects,
+                "relationships": summary.relationships,
             }
         )
     return True
@@ -66,20 +67,22 @@ def render_connection_status() -> bool:
 
 def render_sidebar() -> bool:
     with st.sidebar:
-        st.header("AuraDB")
-        connected = render_connection_status()
         mode = query_mode_from_environment()
-        st.caption(f"Query mode: `{mode}`")
-        if st.button("Refresh connection", width="stretch"):
-            st.cache_resource.clear()
-            st.rerun()
-
-        st.divider()
+        diagnostics = st.container()
         st.markdown(
             "<p style='color:#06B6D4; font-size:0.95rem; font-weight:500; "
             "text-align:center;'>Ask anything about your integrations in plain English</p>",
             unsafe_allow_html=True,
         )
+        st.divider()
+
+        connected = render_connection_status()
+        connection = "AuraDB · connected (read-only)" if connected else "AuraDB · unavailable"
+        with diagnostics:
+            st.caption(f"Connection: `{connection}`")
+            st.caption(f"Query mode: `{mode}`")
+
+        st.divider()
 
         for group_index, group in enumerate(SIDEBAR_QUESTION_GROUPS):
             if group_index:

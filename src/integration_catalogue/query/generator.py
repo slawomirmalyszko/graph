@@ -145,16 +145,21 @@ class BedrockCypherGenerator:
     ) -> None:
         self._adapter = adapter
         self._schema_context = schema_context or build_schema_context()
-        self._examples_context = examples_context or build_examples_context()
+        self._examples_context = examples_context
 
     def generate(self, question: str) -> GeneratedQuery:
         if not question.strip():
             raise ValueError("Question cannot be empty.")
 
+        reviewed_examples = (
+            self._examples_context
+            if self._examples_context is not None
+            else build_examples_context(question)
+        )
         user_prompt = json.dumps(
             {
                 "canonical_schema": self._schema_context,
-                "reviewed_examples": self._examples_context,
+                "reviewed_examples": reviewed_examples,
                 "question": question.strip(),
             },
             ensure_ascii=False,
