@@ -1,5 +1,5 @@
 output "application_url" {
-  description = "Temporary HTTP URL; access is restricted by allowed_ingress_cidrs."
+  description = "ALB origin URL; direct access is restricted to CloudFront origin-facing servers."
   value       = "http://${aws_lb.this.dns_name}"
 }
 

@@ -72,3 +72,8 @@ jobs:
         run: |
           terraform init -backend=false -input=false
           terraform validate
+      - name: Initialize and validate persistent DEV edge
+        working-directory: infra/environments/dev-edge
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate

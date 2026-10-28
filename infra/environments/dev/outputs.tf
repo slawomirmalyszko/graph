@@ -1,5 +1,5 @@
 output "application_url" {
-  description = "Restricted temporary DEV URL."
+  description = "CloudFront-restricted DEV ALB origin URL."
   value       = module.runtime.application_url
 }
 

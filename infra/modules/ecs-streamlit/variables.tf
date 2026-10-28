@@ -28,16 +28,6 @@ variable "vpc_cidr" {
   type        = string
 }
 
-variable "allowed_ingress_cidrs" {
-  description = "Public CIDRs permitted to reach the HTTP ALB listener."
-  type        = list(string)
-
-  validation {
-    condition     = length(var.allowed_ingress_cidrs) > 0 && !contains(var.allowed_ingress_cidrs, "0.0.0.0/0")
-    error_message = "At least one restricted CIDR is required; 0.0.0.0/0 is not allowed."
-  }
-}
-
 variable "ecr_repository_name" {
   description = "Name of the existing shared ECR repository."
   type        = string

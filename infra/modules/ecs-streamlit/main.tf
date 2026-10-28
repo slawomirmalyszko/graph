@@ -6,6 +6,10 @@ data "aws_caller_identity" "current" {}
 
 data "aws_partition" "current" {}
 
+data "aws_ec2_managed_prefix_list" "cloudfront_origin_facing" {
+  name = "com.amazonaws.global.cloudfront.origin-facing"
+}
+
 data "aws_ecr_repository" "application" {
   name = var.ecr_repository_name
 }
@@ -82,15 +86,13 @@ resource "aws_security_group" "alb" {
   tags = { Name = "${local.name}-alb" }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "alb_http" {
-  for_each = toset(var.allowed_ingress_cidrs)
-
+resource "aws_vpc_security_group_ingress_rule" "alb_http_from_cloudfront" {
   security_group_id = aws_security_group.alb.id
-  description       = "HTTP from an approved public CIDR"
+  description       = "HTTP from CloudFront origin-facing servers"
   from_port         = 80
   to_port           = 80
   ip_protocol       = "tcp"
-  cidr_ipv4         = each.value
+  prefix_list_id    = data.aws_ec2_managed_prefix_list.cloudfront_origin_facing.id
 }
 
 resource "aws_security_group" "task" {

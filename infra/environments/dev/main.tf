@@ -13,13 +13,12 @@ provider "aws" {
 module "runtime" {
   source = "../../modules/ecs-streamlit"
 
-  project_name          = "integration-catalogue"
-  environment           = "dev"
-  aws_region            = var.aws_region
-  vpc_cidr              = "10.20.0.0/20"
-  allowed_ingress_cidrs = var.allowed_ingress_cidrs
-  ecr_repository_name   = "integration-catalogue"
-  image_tag             = var.image_tag
-  auradb_secret_name    = var.auradb_secret_name
-  desired_count         = var.desired_count
+  project_name        = "integration-catalogue"
+  environment         = "dev"
+  aws_region          = var.aws_region
+  vpc_cidr            = "10.20.0.0/20"
+  ecr_repository_name = "integration-catalogue"
+  image_tag           = var.image_tag
+  auradb_secret_name  = var.auradb_secret_name
+  desired_count       = var.desired_count
 }
