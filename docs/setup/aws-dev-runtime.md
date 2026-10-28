@@ -67,9 +67,11 @@ $env:INTEGRATION_CATALOGUE_AWS_ACCOUNT_ID = "your-12-digit-account-id"
 aws login
 ```
 
-Terraform runs in the pinned Docker image. The AWS login cache is mounted
-read-only and credentials are not printed, copied into the image, or stored in
-Terraform state.
+Terraform runs in the pinned Docker image. The host AWS configuration directory
+is mounted read-only, with only its `aws login` token-cache subdirectory mounted
+writable so short-lived credentials can refresh during a long Terraform apply.
+Credentials are not printed, copied into the image, or stored in Terraform
+state; the container is removed after each command.
 
 ```powershell
 .\scripts\dev.cmd

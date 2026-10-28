@@ -24,6 +24,7 @@ $RuntimeVariablesPath = Join-Path $RuntimeTerraformDirectory "terraform.tfvars"
 $RuntimeBackendPath = Join-Path $RuntimeTerraformDirectory "backend.hcl"
 $EdgeBackendPath = Join-Path $EdgeTerraformDirectory "backend.hcl"
 $AwsConfigurationDirectory = Join-Path $env:USERPROFILE ".aws"
+$AwsLoginCacheDirectory = Join-Path $AwsConfigurationDirectory "login\cache"
 
 function Show-Usage {
     @"
@@ -69,6 +70,22 @@ function Assert-CommandAvailable {
     }
 }
 
+function Get-BackendSetting {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+    $Content = Get-Content -Raw -LiteralPath $Path
+    $Match = [regex]::Match(
+        $Content,
+        "(?m)^$([regex]::Escape($Name))\s*=\s*`"([^`"]+)`"\s*$"
+    )
+    if (-not $Match.Success) {
+        throw "Backend configuration '$Path' must define '$Name'."
+    }
+    return $Match.Groups[1].Value
+}
+
 function Assert-LocalConfiguration {
     if ([string]::IsNullOrWhiteSpace($ExpectedAccountId)) {
         throw "Expected AWS account ID is required. Set INTEGRATION_CATALOGUE_AWS_ACCOUNT_ID locally or pass -ExpectedAccountId."
@@ -78,10 +95,37 @@ function Assert-LocalConfiguration {
             throw "Missing ignored configuration: $Path"
         }
     }
+    if (-not (Test-Path -LiteralPath $AwsLoginCacheDirectory -PathType Container)) {
+        throw "AWS login cache is unavailable. Run 'aws login' and retry."
+    }
+
+    $RuntimeBucket = Get-BackendSetting -Path $RuntimeBackendPath -Name "bucket"
+    $EdgeBucket = Get-BackendSetting -Path $EdgeBackendPath -Name "bucket"
+    if ($EdgeBucket -eq "replace-with-bootstrap-state-bucket") {
+        throw (
+            "DEV edge backend still contains the example bucket placeholder. " +
+            "Use the same bucket as infra/environments/dev/backend.hcl."
+        )
+    }
+    if ($EdgeBucket -ne $RuntimeBucket) {
+        throw "DEV runtime and edge backends must use the same protected state bucket."
+    }
+
+    $RuntimeKey = Get-BackendSetting -Path $RuntimeBackendPath -Name "key"
+    $EdgeKey = Get-BackendSetting -Path $EdgeBackendPath -Name "key"
+    if ($RuntimeKey -ne "runtime/dev/terraform.tfstate") {
+        throw "DEV runtime backend key must be runtime/dev/terraform.tfstate."
+    }
+    if ($EdgeKey -ne "edge/dev/terraform.tfstate") {
+        throw "DEV edge backend key must be edge/dev/terraform.tfstate."
+    }
 }
 
 function Invoke-AwsJson {
-    param([Parameter(Mandatory = $true)][string[]]$Arguments)
+    param(
+        [Parameter(Mandatory = $true)][string[]]$Arguments,
+        [switch]$AllowEmpty
+    )
     $PreviousErrorActionPreference = $ErrorActionPreference
     try {
         $ErrorActionPreference = "Continue"
@@ -96,7 +140,11 @@ function Invoke-AwsJson {
         throw "AWS CLI operation '$Operation' failed with exit code $ExitCode."
     }
     if ([string]::IsNullOrWhiteSpace(($Output -join ""))) {
-        throw "AWS CLI returned no JSON output."
+        if ($AllowEmpty) {
+            return $null
+        }
+        $Operation = ($Arguments | Select-Object -First 2) -join " "
+        throw "AWS CLI operation '$Operation' returned no JSON output."
     }
     return ($Output | ConvertFrom-Json)
 }
@@ -144,7 +192,12 @@ function Get-DevRuntimeStatus {
 }
 
 function Get-DevEdgeStatus {
-    $Response = Invoke-AwsJson -Arguments @("cloudfront", "list-distributions", "--output", "json")
+    $Response = Invoke-AwsJson `
+        -Arguments @("cloudfront", "list-distributions", "--output", "json") `
+        -AllowEmpty
+    if ($null -eq $Response) {
+        return [pscustomobject]@{ State = "not-provisioned"; Distribution = $null }
+    }
     $Distributions = if ($Response.DistributionList.PSObject.Properties.Name -contains "Items") {
         @($Response.DistributionList.Items)
     } else {
@@ -202,7 +255,7 @@ function Invoke-Terraform {
         throw "AWS login cache directory is unavailable. Run 'aws login' and retry."
     }
     $RelativeDirectory = $TerraformDirectory.Substring($RepositoryRoot.Length).TrimStart("\").Replace("\", "/")
-    $DockerArguments = @("run", "--rm", "-e", "AWS_REGION=$AwsRegion", "-e", "AWS_DEFAULT_REGION=$AwsRegion", "-e", "AWS_SDK_LOAD_CONFIG=1", "-v", "${AwsConfigurationDirectory}:/root/.aws:ro", "-v", "${RepositoryRoot}:/workspace", "-w", "/workspace/$RelativeDirectory", $TerraformImage) + $Arguments
+    $DockerArguments = @("run", "--rm", "-e", "AWS_REGION=$AwsRegion", "-e", "AWS_DEFAULT_REGION=$AwsRegion", "-e", "AWS_SDK_LOAD_CONFIG=1", "-v", "${AwsConfigurationDirectory}:/root/.aws:ro", "-v", "${AwsLoginCacheDirectory}:/root/.aws/login/cache", "-v", "${RepositoryRoot}:/workspace", "-w", "/workspace/$RelativeDirectory", $TerraformImage) + $Arguments
     & docker @DockerArguments
     if ($LASTEXITCODE -ne 0) { throw "Terraform command failed." }
 }
