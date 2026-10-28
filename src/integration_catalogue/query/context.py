@@ -23,6 +23,19 @@ EXAMPLES: tuple[dict[str, Any], ...] = (
         },
     },
     {
+        "question": "List all catalogue nodes.",
+        "response": {
+            "cypher": (
+                "MATCH (node) UNWIND labels(node) AS node_label "
+                "RETURN DISTINCT node_label ORDER BY node_label LIMIT $limit"
+            ),
+            "parameters": {"limit": 100},
+            "summary": "List the distinct node labels present in the catalogue.",
+            "confidence": 0.98,
+            "clarification": None,
+        },
+    },
+    {
         "question": "Show applications containing SAP in their name.",
         "response": {
             "cypher": (
@@ -86,6 +99,214 @@ EXAMPLES: tuple[dict[str, Any], ...] = (
             },
             "summary": "Find the shortest catalogue path between the two applications.",
             "confidence": 0.95,
+            "clarification": None,
+        },
+    },
+    {
+        "question": "Display all applications with more than three interfaces.",
+        "response": {
+            "cypher": (
+                "MATCH (app:Application)-[:EXPOSES|USES]->(interface:Interface) "
+                "WITH app, count(DISTINCT interface) AS interface_count "
+                "WHERE interface_count > $minimum_interface_count "
+                "RETURN app.id AS id, app.apm_id AS apm_id, app.name AS name, "
+                "app.status AS status, interface_count "
+                "ORDER BY interface_count DESC, name LIMIT $limit"
+            ),
+            "parameters": {"minimum_interface_count": 3, "limit": 100},
+            "summary": (
+                "Find applications with more than three interfaces and return each count."
+            ),
+            "confidence": 0.98,
+            "clarification": None,
+        },
+    },
+    {
+        "question": "Show all integration flows and their hop count.",
+        "response": {
+            "cypher": (
+                "MATCH path=(source:Application)-"
+                "[:EXPOSES|USES|SOURCE_OF|TARGETS*1..12]-(target:Application) "
+                "WHERE source.id < target.id "
+                "WITH path, source, target, "
+                "size([node IN nodes(path) WHERE node:Integration]) AS hop_count "
+                "WHERE hop_count > 0 "
+                "RETURN path, source.name AS source_application, "
+                "target.name AS target_application, hop_count "
+                "ORDER BY hop_count, source_application, target_application LIMIT $limit"
+            ),
+            "parameters": {"limit": 100},
+            "summary": "Find application-to-application paths and count integration hops.",
+            "confidence": 0.98,
+            "clarification": None,
+        },
+    },
+    {
+        "question": (
+            "For each interface type, show its usage count and the interface names."
+        ),
+        "response": {
+            "cypher": (
+                "MATCH (interface:Interface) "
+                "WITH interface.interface_type AS interface_type, "
+                "count(interface) AS usage_count, "
+                "collect(interface.name) AS interface_names "
+                "RETURN interface_type, usage_count, interface_names "
+                "ORDER BY usage_count DESC, interface_type LIMIT $limit"
+            ),
+            "parameters": {"limit": 100},
+            "summary": "Count interfaces by type and list the interfaces in each type.",
+            "confidence": 0.98,
+            "clarification": None,
+        },
+    },
+    {
+        "question": "Show end-to-end flows that carry the HR Employee Record.",
+        "response": {
+            "cypher": (
+                "MATCH (integration:Integration)-[:CARRIES]->"
+                "(object:InformationObject) "
+                "WHERE toLower(object.name) = toLower($object_name) "
+                "MATCH path=(source:Application)-"
+                "[:EXPOSES|USES|SOURCE_OF|TARGETS*1..12]-(target:Application) "
+                "WHERE source.id < target.id AND integration IN nodes(path) "
+                "RETURN DISTINCT path LIMIT $limit"
+            ),
+            "parameters": {"object_name": "HR Employee Record", "limit": 50},
+            "summary": (
+                "Find application-to-application paths containing an integration that "
+                "carries the HR Employee Record."
+            ),
+            "confidence": 0.98,
+            "clarification": None,
+        },
+    },
+    {
+        "question": "Which applications are both a source and a target?",
+        "response": {
+            "cypher": (
+                "MATCH (app:Application)-[:EXPOSES]->(:Interface)-[:SOURCE_OF]->"
+                "(:Integration) "
+                "MATCH (app)-[:USES]->(:Interface)<-[:TARGETS]-(:Integration) "
+                "RETURN DISTINCT app.id AS id, app.apm_id AS apm_id, "
+                "app.name AS name, app.status AS status "
+                "ORDER BY name LIMIT $limit"
+            ),
+            "parameters": {"limit": 100},
+            "summary": "Find applications participating in both outbound and inbound flows.",
+            "confidence": 0.98,
+            "clarification": None,
+        },
+    },
+    {
+        "question": "Show all flows with their source and target applications.",
+        "response": {
+            "cypher": (
+                "MATCH path=(source:Application)-"
+                "[:EXPOSES|USES|SOURCE_OF|TARGETS*1..12]-(target:Application) "
+                "WHERE source.id < target.id "
+                "AND size([node IN nodes(path) WHERE node:Integration]) > 0 "
+                "RETURN path, source.name AS source_application, "
+                "target.name AS target_application LIMIT $limit"
+            ),
+            "parameters": {"limit": 100},
+            "summary": "Find each application-to-application flow once.",
+            "confidence": 0.98,
+            "clarification": None,
+        },
+    },
+    {
+        "question": (
+            "Show end-to-end flows that carry the HR Employee Record, including objects "
+            "in the graph."
+        ),
+        "response": {
+            "cypher": (
+                "MATCH (integration:Integration)-[carries:CARRIES]->"
+                "(object:InformationObject) "
+                "WHERE toLower(object.name) = toLower($object_name) "
+                "MATCH path=(source:Application)-"
+                "[:EXPOSES|USES|SOURCE_OF|TARGETS*1..12]-(target:Application) "
+                "WHERE source.id < target.id AND integration IN nodes(path) "
+                "RETURN path, collect(DISTINCT integration) AS integrations, "
+                "collect(DISTINCT carries) AS carries_relationships, object LIMIT $limit"
+            ),
+            "parameters": {"object_name": "HR Employee Record", "limit": 50},
+            "summary": (
+                "Find HR Employee Record paths and include the object and CARRIES edges "
+                "in the graph result."
+            ),
+            "confidence": 0.98,
+            "clarification": None,
+        },
+    },
+    {
+        "question": (
+            "Show end-to-end flows that carry the HR Employee Record, including objects "
+            "in the graph, but exclude Oracle."
+        ),
+        "response": {
+            "cypher": (
+                "MATCH (integration:Integration)-[carries:CARRIES]->"
+                "(object:InformationObject) "
+                "WHERE toLower(object.name) = toLower($object_name) "
+                "MATCH path=(source:Application)-"
+                "[:EXPOSES|USES|SOURCE_OF|TARGETS*1..12]-(target:Application) "
+                "WHERE source.id < target.id AND integration IN nodes(path) "
+                "AND none(node IN nodes(path) WHERE "
+                "toLower(coalesce(node.name, $empty_name)) "
+                "CONTAINS toLower($excluded_name)) "
+                "RETURN path, collect(DISTINCT integration) AS integrations, "
+                "collect(DISTINCT carries) AS carries_relationships, object LIMIT $limit"
+            ),
+            "parameters": {
+                "object_name": "HR Employee Record",
+                "excluded_name": "Oracle",
+                "empty_name": "",
+                "limit": 50,
+            },
+            "summary": (
+                "Find HR Employee Record paths with graph objects while excluding every "
+                "path containing Oracle."
+            ),
+            "confidence": 0.98,
+            "clarification": None,
+        },
+    },
+    {
+        "question": "show full path between Sforce SRM and SAo S/ANA",
+        "response": {
+            "cypher": (
+                "MATCH (source:Application), (target:Application) "
+                "WHERE toLower(source.name) = toLower($source_name) "
+                "AND toLower(target.name) = toLower($target_name) "
+                "MATCH path=shortestPath((source)-"
+                "[:EXPOSES|USES|SOURCE_OF|TARGETS*1..20]-(target)) "
+                "RETURN path LIMIT $limit"
+            ),
+            "parameters": {
+                "source_name": "Salesforce CRM",
+                "target_name": "SAP S/4HANA",
+                "limit": 10,
+            },
+            "summary": "Resolve misspelled application names and find their shortest path.",
+            "confidence": 0.9,
+            "clarification": None,
+        },
+    },
+    {
+        "question": "Enumera las cinco interfaces utilizadas por más integraciones.",
+        "response": {
+            "cypher": (
+                "MATCH (interface:Interface)-[:SOURCE_OF|TARGETS]-"
+                "(integration:Integration) "
+                "WITH interface, count(DISTINCT integration) AS integration_count "
+                "RETURN interface.id AS id, interface.name AS name, integration_count "
+                "ORDER BY integration_count DESC, name LIMIT $limit"
+            ),
+            "parameters": {"limit": 5},
+            "summary": "List the five interfaces used by the most integrations.",
+            "confidence": 0.98,
             "clarification": None,
         },
     },

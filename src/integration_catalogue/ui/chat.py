@@ -13,17 +13,91 @@ from neo4j.exceptions import DriverError, Neo4jError
 
 from integration_catalogue.query.bedrock import BedrockResponseError
 from integration_catalogue.query.generator import CypherGenerator, GeneratedQueryError
-from integration_catalogue.query.pipeline import QueryOutcome, run_question
+from integration_catalogue.query.pipeline import (
+    GeneratedQueryProcessingError,
+    QueryOutcome,
+    run_question,
+)
 from integration_catalogue.query.result_graph import ResultGraph, build_result_graph, to_table_rows
 from integration_catalogue.query.safety import CypherSafetyError
 
 LOGGER = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class SidebarQuestion:
+    prompt: str
+    caption: str | None = None
+
+
+@dataclass(frozen=True)
+class SidebarQuestionGroup:
+    key: str
+    title: str
+    questions: tuple[SidebarQuestion, ...]
+    title_color: str | None = None
+
 
 EXAMPLE_QUESTIONS = (
     "How many applications are there?",
     "Show all objects carried by integrations.",
     "Show all end-to-end flows that interface with SAP.",
     "Show the full path between Salesforce CRM and SAP S/4HANA.",
+)
+
+SIDEBAR_QUESTION_GROUPS = (
+    SidebarQuestionGroup(
+        key="examples",
+        title="Example questions",
+        questions=(
+            SidebarQuestion("How many applications are there?"),
+            SidebarQuestion("List all catalogue nodes."),
+            SidebarQuestion("Which applications expose or use the most interfaces?"),
+            SidebarQuestion("Show all integration flows and their hop count."),
+            SidebarQuestion("Which interface types are used most often?"),
+            SidebarQuestion(
+                "For each interface type, show its usage count and the interface names."
+            ),
+            SidebarQuestion("Which applications are both a source and a target?"),
+            SidebarQuestion("Show all objects carried by integrations."),
+            SidebarQuestion("Show the unique objects carried by integrations."),
+            SidebarQuestion("Show all flows with their source and target applications."),
+            SidebarQuestion("Show end-to-end flows that carry the HR Employee Record."),
+            SidebarQuestion(
+                "Show end-to-end flows that carry the HR Employee Record, including objects "
+                "in the graph."
+            ),
+            SidebarQuestion(
+                "Show end-to-end flows that carry the HR Employee Record, including objects "
+                "in the graph, but exclude Oracle."
+            ),
+            SidebarQuestion("Show the full path between Salesforce CRM and SAP S/4HANA."),
+        ),
+    ),
+    SidebarQuestionGroup(
+        key="typos",
+        title="Typos are OK",
+        title_color="#F97316",
+        questions=(
+            SidebarQuestion("appcations list"),
+            SidebarQuestion("show full path between Sforce SRM and SAo S/ANA"),
+        ),
+    ),
+    SidebarQuestionGroup(
+        key="languages",
+        title="Bonjour!",
+        title_color="#059669",
+        questions=(
+            SidebarQuestion(
+                "Enumera las cinco interfaces utilizadas por más integraciones.",
+                "List the five interfaces used by the most integrations.",
+            ),
+            SidebarQuestion(
+                "显示所有具有三个以上接口的应用程序。",
+                "Display all applications with more than three interfaces.",
+            ),
+        ),
+    ),
 )
 
 
@@ -117,6 +191,23 @@ def process_question(
     """Run one question and translate expected failures into a UI-safe response."""
     try:
         return _to_chat_response(run_question(generator, driver, question, database=database))
+    except GeneratedQueryProcessingError as error:
+        cause = error.__cause__ or error
+        LOGGER.exception("Generated query processing failed with %s", type(cause).__name__)
+        summary, guidance = _friendly_failure(cause)
+        generated = error.generated
+        return ChatResponse(
+            summary=summary,
+            cypher=generated.cypher,
+            parameters=generated.parameters,
+            confidence=generated.confidence,
+            model_id=generated.model_id,
+            input_tokens=generated.input_tokens,
+            output_tokens=generated.output_tokens,
+            total_tokens=generated.total_tokens,
+            latency_ms=generated.latency_ms,
+            error=guidance,
+        )
     except Exception as error:
         LOGGER.exception("Question processing failed with %s", type(error).__name__)
         summary, guidance = _friendly_failure(error)
