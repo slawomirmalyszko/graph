@@ -109,3 +109,14 @@ def test_examples_teach_typo_resolution_and_multilingual_aggregation() -> None:
     assert '"target_name": "SAP S/4HANA"' in examples
     assert "Enumera las cinco interfaces utilizadas por más integraciones." in questions
     assert "count(DISTINCT integration) AS integration_count" in examples
+
+
+def test_question_context_selects_smaller_relevant_example_set() -> None:
+    all_examples = build_examples_context()
+    selected = build_examples_context(
+        "Find applications that have employee record in their integrations."
+    )
+
+    assert len(json.loads(selected)) == 5
+    assert "Show end-to-end flows that carry the HR Employee Record." in selected
+    assert len(selected) < len(all_examples)
