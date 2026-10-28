@@ -76,20 +76,31 @@ state; the container is removed after each command.
 ```powershell
 .\scripts\dev.cmd
 .\scripts\dev.cmd status
-.\scripts\dev.cmd active
-.\scripts\dev.cmd maintenance
+.\scripts\dev.cmd activate
+.\scripts\dev.cmd update -ImageTag sha-0123456789abcdef0123456789abcdef01234567
+.\scripts\dev.cmd maintain
 ```
 
 - `status` is read-only and reports the combined edge/runtime state and stable
   CloudFront URL.
-- `active` reviews and applies the runtime plan, waits for ECS stability, then
+- `activate` reviews and applies the runtime plan, waits for ECS stability, then
   separately reviews and applies the active edge plan.
-- `maintenance` reviews and deploys the maintenance edge first, then separately
-  reviews the runtime destroy plan.
+- `update` requires an active runtime and an immutable image tag that already
+  exists in ECR. It reviews and applies only the runtime plan, waits for ECS
+  stability, verifies the deployed task-definition image, and leaves
+  CloudFront active. After verification, it saves the deployed tag in the
+  ignored local `terraform.tfvars` file so a later `maintain` to `activate`
+  command cycle recreates the same version. No deployment-tag PR is required.
+- `maintain` requires one exact `APPLY MAINTENANCE DEV` confirmation for the
+  complete transition. It deploys the reviewed maintenance edge first, waits
+  for CloudFront, and then applies the runtime destroy plan without a second
+  prompt.
 
-Every mutation displays a saved Terraform plan and requires an exact
-interactive confirmation. Plan files are deleted after success, cancellation,
-or failure. Runtime destruction also removes its CloudWatch log group.
+Every mutation displays a saved Terraform plan. Each lifecycle command requires
+an exact interactive confirmation; `maintain` uses one confirmation for its
+ordered edge-and-runtime transition. Plan files are deleted after success,
+cancellation, or failure. Runtime destruction also removes its CloudWatch log
+group.
 
 ## Prepare local configuration
 
@@ -106,6 +117,6 @@ Replace the state-bucket placeholder in both backend files and select an image
 that already exists in ECR. The edge root requires no tfvars file: the lifecycle
 controller passes the current ALB hostname and state explicitly.
 
-Run `status`, then use `active` or `maintenance` and review every plan before
+Run `status`, then use `activate` or `maintain` and review every plan before
 entering the displayed phrase. Use direct Terraform commands only for diagnosis
 or recovery when the controller cannot safely classify the deployment.

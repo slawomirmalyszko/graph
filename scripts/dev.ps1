@@ -1,10 +1,12 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("help", "status", "active", "maintenance")]
+    [ValidateSet("help", "status", "activate", "maintain", "update")]
     [string]$Command = "help",
     [ValidatePattern("^\d{12}$")]
-    [string]$ExpectedAccountId = $env:INTEGRATION_CATALOGUE_AWS_ACCOUNT_ID
+    [string]$ExpectedAccountId = $env:INTEGRATION_CATALOGUE_AWS_ACCOUNT_ID,
+    [ValidatePattern("^sha-[0-9a-f]{40}$")]
+    [string]$ImageTag
 )
 
 Set-StrictMode -Version Latest
@@ -16,6 +18,7 @@ $TerraformImage = "hashicorp/terraform:1.17.0"
 $ClusterName = "integration-catalogue-dev"
 $ServiceName = "integration-catalogue-dev"
 $LoadBalancerName = "integration-catalogue-dev"
+$EcrRepositoryName = "integration-catalogue"
 $EdgeCommentPrefix = "integration-catalogue-dev-"
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $RuntimeTerraformDirectory = Join-Path $RepositoryRoot "infra\environments\dev"
@@ -35,8 +38,9 @@ Usage:
 
 Commands:
   status        Show the live DEV state and active cost profile. Read-only.
-  active        Create the runtime, wait for health, then route CloudFront to it.
-  maintenance   Serve the edge maintenance page, then destroy the runtime.
+  activate      Create the runtime, wait for health, then route CloudFront to it.
+  update        Deploy a published immutable image while DEV remains active.
+  maintain      Serve the edge maintenance page, then destroy the runtime.
   help          Show this help.
 
 Operational states:
@@ -44,8 +48,9 @@ Operational states:
   maintenance   Persistent CloudFront serves a maintenance page; DEV runtime is absent.
 
 Safety:
-  active requires separate reviewed runtime and edge Terraform confirmations.
-  maintenance switches the edge first, then requires runtime-destroy confirmation.
+  activate requires separate reviewed runtime and edge Terraform confirmations.
+  update verifies the image in ECR and requires one reviewed runtime confirmation.
+  maintain uses one confirmation, switches the edge first, then destroys the runtime.
 
 Prerequisites:
   1. Docker Desktop and AWS CLI are installed.
@@ -56,8 +61,9 @@ Prerequisites:
 
 Examples:
   .\scripts\dev.cmd status
-  .\scripts\dev.cmd active
-  .\scripts\dev.cmd maintenance
+  .\scripts\dev.cmd activate
+  .\scripts\dev.cmd update -ImageTag sha-0123456789abcdef0123456789abcdef01234567
+  .\scripts\dev.cmd maintain
 
 No command defaults to this help and performs no AWS operation.
 "@ | Write-Host
@@ -211,6 +217,60 @@ function Get-DevEdgeStatus {
     return [pscustomobject]@{ State = $State; Distribution = $Distribution }
 }
 
+function Assert-EcrImageExists {
+    param([Parameter(Mandatory = $true)][string]$Tag)
+    $Response = Invoke-AwsJson -Arguments @(
+        "ecr", "batch-get-image",
+        "--repository-name", $EcrRepositoryName,
+        "--image-ids", "imageTag=$Tag",
+        "--region", $AwsRegion,
+        "--output", "json"
+    )
+    if (@($Response.images).Count -ne 1) {
+        throw "ECR image '$EcrRepositoryName`:$Tag' does not exist. Publish it before updating DEV."
+    }
+    $Digest = @($Response.images)[0].imageId.imageDigest
+    if ($Digest -notmatch "^sha256:[0-9a-f]{64}$") {
+        throw "ECR returned an invalid digest for '$EcrRepositoryName`:$Tag'."
+    }
+    Write-Host "Verified immutable ECR image: $EcrRepositoryName`:$Tag"
+    return $Digest
+}
+
+function Get-ServiceImageDigest {
+    param([Parameter(Mandatory = $true)]$Service)
+    $Response = Invoke-AwsJson -Arguments @(
+        "ecs", "describe-task-definition",
+        "--task-definition", $Service.taskDefinition,
+        "--region", $AwsRegion,
+        "--output", "json"
+    )
+    $Container = @($Response.taskDefinition.containerDefinitions) | Select-Object -First 1
+    if ($null -eq $Container -or $Container.image -notmatch "@(sha256:[0-9a-f]{64})$") {
+        return $null
+    }
+    return $Matches[1]
+}
+
+function Get-EcrImageTags {
+    param([Parameter(Mandatory = $true)][string]$Digest)
+    try {
+        $Response = Invoke-AwsJson -Arguments @(
+            "ecr", "describe-images",
+            "--repository-name", $EcrRepositoryName,
+            "--image-ids", "imageDigest=$Digest",
+            "--region", $AwsRegion,
+            "--output", "json"
+        )
+    }
+    catch {
+        return @()
+    }
+    $Details = @($Response.imageDetails) | Select-Object -First 1
+    if ($null -eq $Details) { return @() }
+    return @($Details.imageTags) | Sort-Object
+}
+
 function Show-DevStatus {
     param([Parameter(Mandatory = $true)]$RuntimeStatus, [Parameter(Mandatory = $true)]$EdgeStatus)
     $OperationalState = if ($EdgeStatus.State -eq "active" -and $RuntimeStatus.State -eq "ready") {
@@ -230,6 +290,16 @@ function Show-DevStatus {
     }
     if ($null -ne $RuntimeStatus.Service) {
         Write-Host ("ECS tasks: desired={0}, running={1}, pending={2}" -f $RuntimeStatus.Service.desiredCount, $RuntimeStatus.Service.runningCount, $RuntimeStatus.Service.pendingCount)
+        $DeployedImageDigest = Get-ServiceImageDigest -Service $RuntimeStatus.Service
+        if ($null -ne $DeployedImageDigest) {
+            Write-Host "ECS image digest: $DeployedImageDigest"
+            $DeployedImageTags = @(Get-EcrImageTags -Digest $DeployedImageDigest)
+            if ($DeployedImageTags.Count -gt 0) {
+                Write-Host "ECS image tag: $($DeployedImageTags -join ', ')"
+            } else {
+                Write-Host "ECS image tag: <untagged or unavailable>"
+            }
+        }
     }
     switch ($OperationalState) {
         "active" { Write-Host "Cost profile: persistent edge plus ALB/public IPv4 and one Fargate task." }
@@ -246,6 +316,20 @@ function Set-DesiredCountOne {
         throw "terraform.tfvars must contain exactly one desired_count assignment."
     }
     [System.IO.File]::WriteAllText($RuntimeVariablesPath, [regex]::Replace($Content, $Pattern, "desired_count = 1"))
+}
+
+function Set-RuntimeImageTag {
+    param([Parameter(Mandatory = $true)][string]$Tag)
+    $Content = Get-Content -Raw -LiteralPath $RuntimeVariablesPath
+    $Pattern = '(?m)^image_tag\s*=\s*"[^"]+"\s*$'
+    if ([regex]::Matches($Content, $Pattern).Count -ne 1) {
+        throw "terraform.tfvars must contain exactly one image_tag assignment."
+    }
+    $Replacement = "image_tag = `"$Tag`""
+    [System.IO.File]::WriteAllText(
+        $RuntimeVariablesPath,
+        [regex]::Replace($Content, $Pattern, $Replacement)
+    )
 }
 
 function Invoke-Terraform {
@@ -278,7 +362,8 @@ function Invoke-ReviewedPlan {
         [Parameter(Mandatory = $true)][string]$PlanName,
         [Parameter(Mandatory = $true)][string]$Confirmation,
         [string[]]$Variables = @(),
-        [switch]$Destroy
+        [switch]$Destroy,
+        [switch]$SkipConfirmation
     )
     $PlanPath = Join-Path $TerraformDirectory $PlanName
     if (Test-Path -LiteralPath $PlanPath) { Remove-Item -LiteralPath $PlanPath -Force }
@@ -287,7 +372,9 @@ function Invoke-ReviewedPlan {
         foreach ($Variable in $Variables) { $PlanArguments += "-var=$Variable" }
         if ($Destroy) { $PlanArguments += "-destroy" }
         Invoke-Terraform -TerraformDirectory $TerraformDirectory -Arguments $PlanArguments
-        Read-ExactConfirmation -Prompt "Review the complete plan above." -Expected $Confirmation
+        if (-not $SkipConfirmation) {
+            Read-ExactConfirmation -Prompt "Review the complete plan above." -Expected $Confirmation
+        }
         Invoke-Terraform -TerraformDirectory $TerraformDirectory -Arguments @("apply", "-input=false", "-no-color", $PlanName)
     }
     finally {
@@ -318,7 +405,7 @@ $EdgeStatus = Get-DevEdgeStatus
 
 switch ($Command) {
     "status" { Show-DevStatus -RuntimeStatus $RuntimeStatus -EdgeStatus $EdgeStatus }
-    "active" {
+    "activate" {
         if ($EdgeStatus.State -eq "active" -and $RuntimeStatus.State -eq "ready") {
             Write-Host "DEV is already active."
             Show-DevStatus -RuntimeStatus $RuntimeStatus -EdgeStatus $EdgeStatus
@@ -336,7 +423,35 @@ switch ($Command) {
         Wait-ForEdgeDeployment
         Show-DevStatus -RuntimeStatus (Get-DevRuntimeStatus) -EdgeStatus (Get-DevEdgeStatus)
     }
-    "maintenance" {
+    "update" {
+        if ([string]::IsNullOrWhiteSpace($ImageTag)) {
+            throw "update requires -ImageTag with an immutable sha-<40 lowercase hex characters> tag."
+        }
+        if ($EdgeStatus.State -ne "active" -or $RuntimeStatus.State -ne "ready") {
+            throw "DEV must be active and ready before an in-place image update."
+        }
+        $ExpectedImageDigest = Assert-EcrImageExists -Tag $ImageTag
+        Initialize-Terraform -TerraformDirectory $RuntimeTerraformDirectory
+        Invoke-ReviewedPlan `
+            -TerraformDirectory $RuntimeTerraformDirectory `
+            -PlanName "dev-update.tfplan" `
+            -Confirmation "APPLY DEV IMAGE UPDATE" `
+            -Variables @("image_tag=$ImageTag", "desired_count=1")
+        Wait-ForServiceStability
+        $RuntimeStatus = Get-DevRuntimeStatus
+        if ($RuntimeStatus.State -ne "ready") {
+            throw "DEV runtime did not return to ready after the image update."
+        }
+        $DeployedImageDigest = Get-ServiceImageDigest -Service $RuntimeStatus.Service
+        if ($DeployedImageDigest -ne $ExpectedImageDigest) {
+            throw "ECS stabilized without the digest referenced by the requested image tag. Review the ECS deployment."
+        }
+        Set-RuntimeImageTag -Tag $ImageTag
+        Write-Host "DEV image update completed: $ImageTag"
+        Write-Host "Saved the deployed image tag in the ignored local terraform.tfvars file."
+        Show-DevStatus -RuntimeStatus $RuntimeStatus -EdgeStatus (Get-DevEdgeStatus)
+    }
+    "maintain" {
         if ($EdgeStatus.State -eq "maintenance" -and $RuntimeStatus.State -eq "absent") {
             Write-Host "DEV is already in maintenance."
             Show-DevStatus -RuntimeStatus $RuntimeStatus -EdgeStatus $EdgeStatus
@@ -344,13 +459,13 @@ switch ($Command) {
         }
         $OriginDomainName = if ($null -ne $RuntimeStatus.LoadBalancer) { $RuntimeStatus.LoadBalancer.DNSName } else { "maintenance.invalid" }
         Initialize-Terraform -TerraformDirectory $EdgeTerraformDirectory
-        Invoke-ReviewedPlan -TerraformDirectory $EdgeTerraformDirectory -PlanName "dev-edge-maintenance.tfplan" -Confirmation "APPLY MAINTENANCE DEV EDGE" -Variables @("maintenance_mode=true", "origin_domain_name=$OriginDomainName")
+        Invoke-ReviewedPlan -TerraformDirectory $EdgeTerraformDirectory -PlanName "dev-edge-maintenance.tfplan" -Confirmation "APPLY MAINTENANCE DEV" -Variables @("maintenance_mode=true", "origin_domain_name=$OriginDomainName")
         Wait-ForEdgeDeployment
         if ($RuntimeStatus.State -ne "absent") {
             if ($RuntimeStatus.State -eq "incomplete") { throw "The edge is in maintenance, but the runtime is incomplete. Review Terraform before destroying it." }
             Write-Warning "CloudFront now serves maintenance. The reviewed destroy removes the disposable DEV runtime."
             Initialize-Terraform -TerraformDirectory $RuntimeTerraformDirectory
-            Invoke-ReviewedPlan -TerraformDirectory $RuntimeTerraformDirectory -PlanName "dev-maintenance.tfplan" -Confirmation "DESTROY DEV RUNTIME" -Destroy
+            Invoke-ReviewedPlan -TerraformDirectory $RuntimeTerraformDirectory -PlanName "dev-maintenance.tfplan" -Confirmation "APPLY MAINTENANCE DEV" -Destroy -SkipConfirmation
         }
         Show-DevStatus -RuntimeStatus (Get-DevRuntimeStatus) -EdgeStatus (Get-DevEdgeStatus)
     }
