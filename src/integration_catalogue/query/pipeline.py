@@ -27,6 +27,14 @@ class QueryModeError(ValueError):
     """Raised when query-generation mode is unsupported."""
 
 
+class GeneratedQueryProcessingError(RuntimeError):
+    """Preserve generated Cypher when validation or execution fails."""
+
+    def __init__(self, generated: GeneratedQuery) -> None:
+        super().__init__("Generated Cypher could not be processed.")
+        self.generated = generated
+
+
 @dataclass(frozen=True)
 class QueryOutcome:
     generated: GeneratedQuery
@@ -63,6 +71,9 @@ def run_question(
     if generated.cypher is None:
         raise ValueError("Query generator returned neither Cypher nor clarification.")
 
-    validated = validate_read_only_cypher(generated.cypher, generated.parameters)
-    rows = execute_read_query(driver, validated, database=database)
+    try:
+        validated = validate_read_only_cypher(generated.cypher, generated.parameters)
+        rows = execute_read_query(driver, validated, database=database)
+    except Exception as error:
+        raise GeneratedQueryProcessingError(generated) from error
     return QueryOutcome(generated=generated, rows=rows)

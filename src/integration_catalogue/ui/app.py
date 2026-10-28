@@ -13,7 +13,7 @@ from integration_catalogue.database import (
 )
 from integration_catalogue.query.pipeline import create_query_generator, query_mode_from_environment
 from integration_catalogue.ui.chat import (
-    EXAMPLE_QUESTIONS,
+    SIDEBAR_QUESTION_GROUPS,
     ChatResponse,
     process_question,
     rows_to_csv,
@@ -75,11 +75,35 @@ def render_sidebar() -> bool:
             st.rerun()
 
         st.divider()
-        st.subheader("Example questions")
-        for index, example in enumerate(EXAMPLE_QUESTIONS):
-            if st.button(example, key=f"example-{index}", width="stretch"):
-                st.session_state.pending_question = example
+        st.markdown(
+            "<p style='color:#06B6D4; font-size:0.95rem; font-weight:500; "
+            "text-align:center;'>Ask anything about your integrations in plain English</p>",
+            unsafe_allow_html=True,
+        )
 
+        for group_index, group in enumerate(SIDEBAR_QUESTION_GROUPS):
+            if group_index:
+                st.divider()
+            color = f" color:{group.title_color};" if group.title_color else ""
+            st.markdown(
+                f"<h3 style='text-align:center;{color}'>{group.title}</h3>",
+                unsafe_allow_html=True,
+            )
+            for question_index, question in enumerate(group.questions):
+                if st.button(
+                    question.prompt,
+                    key=f"sidebar-{group.key}-{question_index}",
+                    width="stretch",
+                ):
+                    st.session_state.pending_question = question.prompt
+                if question.caption:
+                    st.markdown(
+                        "<p style='text-align:center; color:#94A3B8; "
+                        f"font-size:0.8rem;'>{question.caption}</p>",
+                        unsafe_allow_html=True,
+                    )
+
+        st.divider()
         if st.button("Clear history", width="stretch"):
             st.session_state.messages = []
             st.session_state.pop("pending_question", None)
@@ -87,10 +111,32 @@ def render_sidebar() -> bool:
     return connected
 
 
+def render_model_metadata(response: ChatResponse) -> None:
+    if not response.model_id:
+        return
+    metadata = f"Model: `{response.model_id}`"
+    if response.confidence is not None:
+        metadata += f" · Confidence: {response.confidence:.0%}"
+    if response.model_id != "mock:reviewed-examples":
+        metadata += (
+            f" · Tokens: {response.input_tokens} input + {response.output_tokens} output "
+            f"= {response.total_tokens} total"
+        )
+        if response.latency_ms is not None:
+            metadata += f" · Latency: {response.latency_ms} ms"
+    st.caption(metadata)
+
+
 def render_response(response: ChatResponse, *, key: str) -> None:
     if response.error:
         st.error(response.summary)
         st.caption(response.error)
+        if response.cypher:
+            (cypher_tab,) = st.tabs(["Generated Cypher"])
+            with cypher_tab:
+                st.code(response.cypher, language="cypher")
+                st.write("Parameters", response.parameters or {})
+            render_model_metadata(response)
         return
     if response.clarification:
         st.info(response.clarification)
@@ -128,18 +174,7 @@ def render_response(response: ChatResponse, *, key: str) -> None:
         st.code(response.cypher or "", language="cypher")
         st.write("Parameters", response.parameters or {})
 
-    if response.model_id:
-        metadata = f"Model: `{response.model_id}`"
-        if response.confidence is not None:
-            metadata += f" · Confidence: {response.confidence:.0%}"
-        if response.model_id != "mock:reviewed-examples":
-            metadata += (
-                f" · Tokens: {response.input_tokens} input + {response.output_tokens} output "
-                f"= {response.total_tokens} total"
-            )
-            if response.latency_ms is not None:
-                metadata += f" · Latency: {response.latency_ms} ms"
-        st.caption(metadata)
+    render_model_metadata(response)
 
 
 def main() -> None:
