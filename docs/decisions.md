@@ -163,10 +163,24 @@ the edge origin. Maintenance deploys the edge response before destroying the
 runtime. CloudFront caching is disabled and the managed AllViewer origin request
 policy supports Streamlit HTTP, cookies, query strings, and WebSockets.
 
-A local PowerShell lifecycle controller verifies the exact account, assumed
-role, and Stockholm region; generates saved Terraform plans; and requires exact
-interactive confirmation for each apply or destroy. This keeps routine cost
-control reproducible without granting Terraform permissions to GitHub Actions.
+DEV lifecycle mutations use one standalone CodeBuild project in `eu-north-1`.
+Both EventBridge Scheduler and the local PowerShell remote control start that
+same project, so scheduled and manual operations cannot drift. CodeBuild clones
+the reviewed public `main` branch, checksum-verifies a pinned Terraform binary,
+and operates only the DEV runtime and edge state objects. An SSM parameter keeps
+the last verified immutable image tag across maintenance cycles.
+
+The local controller retains direct read-only status reporting, but never runs
+Terraform or requires Docker. Manual mutations require one explicit local
+confirmation before `StartBuild`; weekday schedules run without interaction.
+The CodeBuild role is distinct from GitHub image publishing and is scoped to the
+DEV lifecycle state, named runtime roles, Stockholm resources, and persistent
+DEV edge. GitHub Actions receives no Terraform or deployment permission.
+
+EventBridge Scheduler activates DEV at 08:00 and enters maintenance at 18:00,
+Monday through Friday, using `Europe/Warsaw` so daylight-saving changes are
+handled by the scheduler. Schedules are initially provisioned disabled and are
+enabled only after a manual CodeBuild lifecycle test succeeds.
 
 ## Open
 

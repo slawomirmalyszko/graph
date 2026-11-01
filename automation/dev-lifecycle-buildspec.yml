@@ -1,0 +1,31 @@
+version: 0.2
+
+phases:
+  install:
+    on-failure: ABORT
+    commands:
+      - |
+        set -euo pipefail
+        terraform_archive="terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
+        curl --fail --silent --show-error --location \
+          "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/${terraform_archive}" \
+          --output "/tmp/${terraform_archive}"
+        curl --fail --silent --show-error --location \
+          "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_SHA256SUMS" \
+          --output /tmp/terraform_SHA256SUMS
+        (cd /tmp && grep " ${terraform_archive}$" terraform_SHA256SUMS | sha256sum --check --strict)
+        unzip -q "/tmp/${terraform_archive}" -d /usr/local/bin
+        terraform version
+  pre_build:
+    on-failure: ABORT
+    commands:
+      - |
+        set -euo pipefail
+        git clone --depth 1 --branch "$REPOSITORY_REF" "$REPOSITORY_URL" /workspace
+        chmod +x /workspace/automation/dev-lifecycle.sh
+  build:
+    on-failure: ABORT
+    commands:
+      - |
+        set -euo pipefail
+        /workspace/automation/dev-lifecycle.sh "$DEV_OPERATION" "${DEV_IMAGE_TAG:-}"

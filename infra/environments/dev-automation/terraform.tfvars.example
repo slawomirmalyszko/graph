@@ -1,0 +1,7 @@
+state_bucket_name = "replace-with-bootstrap-state-bucket"
+initial_image_tag = "sha-0123456789abcdef0123456789abcdef01234567"
+
+# Weekday schedule evaluated in Europe/Warsaw, including DST changes.
+schedules_enabled            = false
+activate_schedule_expression = "cron(0 8 ? * MON-FRI *)"
+maintain_schedule_expression = "cron(0 18 ? * MON-FRI *)"
