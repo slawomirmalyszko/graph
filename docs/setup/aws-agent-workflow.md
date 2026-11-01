@@ -72,6 +72,14 @@ AWS MCP access and local shell access are separate:
   the stable edge accidentally.
 - Bootstrap remains an explicit manual operation using the confirmed short-lived
   local AWS session. The static publisher key never receives Terraform access.
+- Routine DEV `activate`, `maintain`, and `update` operations run only in the
+  scoped `integration-catalogue-dev-lifecycle` CodeBuild project. The local
+  controller starts that project; EventBridge Scheduler starts the same project
+  for working-hour automation. Neither path gives GitHub Terraform access.
+- The `infra/environments/dev-automation` root provisions CodeBuild, Scheduler,
+  their service roles, the build log group, and the SSM image selector. It is an
+  explicit operator-managed bootstrap root because the lifecycle project must
+  not modify its own IAM role or schedules.
 - The protected GitHub environment `image-publishing` contains only
   `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` for the non-console publisher.
 - The publisher policy is scoped to the shared ECR repository and expires at a

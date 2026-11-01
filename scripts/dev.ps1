@@ -14,116 +14,51 @@ $ErrorActionPreference = "Stop"
 
 $AwsRegion = "eu-north-1"
 $ExpectedRoleName = "AccountFullAccessRole"
-$TerraformImage = "hashicorp/terraform:1.17.0"
+$BuildProjectName = "integration-catalogue-dev-lifecycle"
 $ClusterName = "integration-catalogue-dev"
 $ServiceName = "integration-catalogue-dev"
 $LoadBalancerName = "integration-catalogue-dev"
 $EcrRepositoryName = "integration-catalogue"
 $EdgeCommentPrefix = "integration-catalogue-dev-"
-$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$RuntimeTerraformDirectory = Join-Path $RepositoryRoot "infra\environments\dev"
-$EdgeTerraformDirectory = Join-Path $RepositoryRoot "infra\environments\dev-edge"
-$RuntimeVariablesPath = Join-Path $RuntimeTerraformDirectory "terraform.tfvars"
-$RuntimeBackendPath = Join-Path $RuntimeTerraformDirectory "backend.hcl"
-$EdgeBackendPath = Join-Path $EdgeTerraformDirectory "backend.hcl"
-$AwsConfigurationDirectory = Join-Path $env:USERPROFILE ".aws"
-$AwsLoginCacheDirectory = Join-Path $AwsConfigurationDirectory "login\cache"
 
 function Show-Usage {
     @"
-Integration Catalogue DEV lifecycle controller
+Integration Catalogue DEV lifecycle remote control
 
 Usage:
-  .\scripts\dev.cmd <command>
+  .\scripts\dev.ps1 <command>
 
 Commands:
   status        Show the live DEV state and active cost profile. Read-only.
-  activate      Create the runtime, wait for health, then route CloudFront to it.
-  update        Deploy a published immutable image while DEV remains active.
-  maintain      Serve the edge maintenance page, then destroy the runtime.
+  activate      Ask CodeBuild to create the runtime and activate the stable edge.
+  update        Ask CodeBuild to deploy a published immutable image to active DEV.
+  maintain      Ask CodeBuild to serve maintenance and destroy the DEV runtime.
   help          Show this help.
 
-Operational states:
-  active        Persistent CloudFront forwards HTTPS traffic to the healthy DEV runtime.
-  maintenance   Persistent CloudFront serves a maintenance page; DEV runtime is absent.
-
-Safety:
-  activate requires separate reviewed runtime and edge Terraform confirmations.
-  update verifies the image in ECR and requires one reviewed runtime confirmation.
-  maintain uses one confirmation, switches the edge first, then destroys the runtime.
+Execution model:
+  status reads AWS directly and never starts a build.
+  activate, update, and maintain start the same CodeBuild lifecycle executor used
+  by EventBridge Scheduler. Terraform never runs on this laptop.
 
 Prerequisites:
-  1. Docker Desktop and AWS CLI are installed.
+  1. AWS CLI 2.32 or later is installed.
   2. Run: aws login
   3. Set INTEGRATION_CATALOGUE_AWS_ACCOUNT_ID in the current shell.
-  4. Configure ignored backend.hcl files for dev and dev-edge.
-  5. Configure ignored infra/environments/dev/terraform.tfvars.
+  4. Bootstrap infra/environments/dev-automation once through Terraform.
 
 Examples:
-  .\scripts\dev.cmd status
-  .\scripts\dev.cmd activate
-  .\scripts\dev.cmd update -ImageTag sha-0123456789abcdef0123456789abcdef01234567
-  .\scripts\dev.cmd maintain
+  .\scripts\dev.ps1 status
+  .\scripts\dev.ps1 activate
+  .\scripts\dev.ps1 update -ImageTag sha-0123456789abcdef0123456789abcdef01234567
+  .\scripts\dev.ps1 maintain
 
 No command defaults to this help and performs no AWS operation.
 "@ | Write-Host
 }
-
 function Assert-CommandAvailable {
     param([Parameter(Mandatory = $true)][string]$Name)
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
         throw "Required command '$Name' is unavailable."
-    }
-}
-
-function Get-BackendSetting {
-    param(
-        [Parameter(Mandatory = $true)][string]$Path,
-        [Parameter(Mandatory = $true)][string]$Name
-    )
-    $Content = Get-Content -Raw -LiteralPath $Path
-    $Match = [regex]::Match(
-        $Content,
-        "(?m)^$([regex]::Escape($Name))\s*=\s*`"([^`"]+)`"\s*$"
-    )
-    if (-not $Match.Success) {
-        throw "Backend configuration '$Path' must define '$Name'."
-    }
-    return $Match.Groups[1].Value
-}
-
-function Assert-LocalConfiguration {
-    if ([string]::IsNullOrWhiteSpace($ExpectedAccountId)) {
-        throw "Expected AWS account ID is required. Set INTEGRATION_CATALOGUE_AWS_ACCOUNT_ID locally or pass -ExpectedAccountId."
-    }
-    foreach ($Path in @($RuntimeVariablesPath, $RuntimeBackendPath, $EdgeBackendPath)) {
-        if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
-            throw "Missing ignored configuration: $Path"
-        }
-    }
-    if (-not (Test-Path -LiteralPath $AwsLoginCacheDirectory -PathType Container)) {
-        throw "AWS login cache is unavailable. Run 'aws login' and retry."
-    }
-
-    $RuntimeBucket = Get-BackendSetting -Path $RuntimeBackendPath -Name "bucket"
-    $EdgeBucket = Get-BackendSetting -Path $EdgeBackendPath -Name "bucket"
-    if ($EdgeBucket -eq "replace-with-bootstrap-state-bucket") {
-        throw (
-            "DEV edge backend still contains the example bucket placeholder. " +
-            "Use the same bucket as infra/environments/dev/backend.hcl."
-        )
-    }
-    if ($EdgeBucket -ne $RuntimeBucket) {
-        throw "DEV runtime and edge backends must use the same protected state bucket."
-    }
-
-    $RuntimeKey = Get-BackendSetting -Path $RuntimeBackendPath -Name "key"
-    $EdgeKey = Get-BackendSetting -Path $EdgeBackendPath -Name "key"
-    if ($RuntimeKey -ne "runtime/dev/terraform.tfstate") {
-        throw "DEV runtime backend key must be runtime/dev/terraform.tfstate."
-    }
-    if ($EdgeKey -ne "edge/dev/terraform.tfstate") {
-        throw "DEV edge backend key must be edge/dev/terraform.tfstate."
     }
 }
 
@@ -146,9 +81,7 @@ function Invoke-AwsJson {
         throw "AWS CLI operation '$Operation' failed with exit code $ExitCode."
     }
     if ([string]::IsNullOrWhiteSpace(($Output -join ""))) {
-        if ($AllowEmpty) {
-            return $null
-        }
+        if ($AllowEmpty) { return $null }
         $Operation = ($Arguments | Select-Object -First 2) -join " "
         throw "AWS CLI operation '$Operation' returned no JSON output."
     }
@@ -157,6 +90,9 @@ function Invoke-AwsJson {
 
 function Assert-AwsIdentity {
     Assert-CommandAvailable -Name "aws"
+    if ([string]::IsNullOrWhiteSpace($ExpectedAccountId)) {
+        throw "Expected AWS account ID is required. Set INTEGRATION_CATALOGUE_AWS_ACCOUNT_ID locally or pass -ExpectedAccountId."
+    }
     try {
         $Identity = Invoke-AwsJson -Arguments @("sts", "get-caller-identity", "--region", $AwsRegion, "--output", "json")
     }
@@ -198,90 +134,55 @@ function Get-DevRuntimeStatus {
 }
 
 function Get-DevEdgeStatus {
-    $Response = Invoke-AwsJson `
-        -Arguments @("cloudfront", "list-distributions", "--output", "json") `
-        -AllowEmpty
+    $Response = Invoke-AwsJson -Arguments @("cloudfront", "list-distributions", "--output", "json") -AllowEmpty
     if ($null -eq $Response) {
         return [pscustomobject]@{ State = "not-provisioned"; Distribution = $null }
     }
     $Distributions = if ($Response.DistributionList.PSObject.Properties.Name -contains "Items") {
         @($Response.DistributionList.Items)
-    } else {
-        @()
-    }
+    } else { @() }
     $Distribution = $Distributions | Where-Object { $_.Comment -like "$EdgeCommentPrefix*" } | Select-Object -First 1
     if ($null -eq $Distribution) {
         return [pscustomobject]@{ State = "not-provisioned"; Distribution = $null }
     }
-    $State = if ($Distribution.Comment -eq "${EdgeCommentPrefix}active") { "active" } elseif ($Distribution.Comment -eq "${EdgeCommentPrefix}maintenance") { "maintenance" } else { "incomplete" }
+    $State = if ($Distribution.Comment -eq "${EdgeCommentPrefix}active") {
+        "active"
+    } elseif ($Distribution.Comment -eq "${EdgeCommentPrefix}maintenance") {
+        "maintenance"
+    } else { "incomplete" }
     return [pscustomobject]@{ State = $State; Distribution = $Distribution }
-}
-
-function Assert-EcrImageExists {
-    param([Parameter(Mandatory = $true)][string]$Tag)
-    $Response = Invoke-AwsJson -Arguments @(
-        "ecr", "batch-get-image",
-        "--repository-name", $EcrRepositoryName,
-        "--image-ids", "imageTag=$Tag",
-        "--region", $AwsRegion,
-        "--output", "json"
-    )
-    if (@($Response.images).Count -ne 1) {
-        throw "ECR image '$EcrRepositoryName`:$Tag' does not exist. Publish it before updating DEV."
-    }
-    $Digest = @($Response.images)[0].imageId.imageDigest
-    if ($Digest -notmatch "^sha256:[0-9a-f]{64}$") {
-        throw "ECR returned an invalid digest for '$EcrRepositoryName`:$Tag'."
-    }
-    Write-Host "Verified immutable ECR image: $EcrRepositoryName`:$Tag"
-    return $Digest
 }
 
 function Get-ServiceImageDigest {
     param([Parameter(Mandatory = $true)]$Service)
-    $Response = Invoke-AwsJson -Arguments @(
-        "ecs", "describe-task-definition",
-        "--task-definition", $Service.taskDefinition,
-        "--region", $AwsRegion,
-        "--output", "json"
-    )
+    $Response = Invoke-AwsJson -Arguments @("ecs", "describe-task-definition", "--task-definition", $Service.taskDefinition, "--region", $AwsRegion, "--output", "json")
     $Container = @($Response.taskDefinition.containerDefinitions) | Select-Object -First 1
-    if ($null -eq $Container -or $Container.image -notmatch "@(sha256:[0-9a-f]{64})$") {
-        return $null
-    }
+    if ($null -eq $Container -or $Container.image -notmatch "@(sha256:[0-9a-f]{64})$") { return $null }
     return $Matches[1]
 }
 
 function Get-EcrImageTags {
     param([Parameter(Mandatory = $true)][string]$Digest)
     try {
-        $Response = Invoke-AwsJson -Arguments @(
-            "ecr", "describe-images",
-            "--repository-name", $EcrRepositoryName,
-            "--image-ids", "imageDigest=$Digest",
-            "--region", $AwsRegion,
-            "--output", "json"
-        )
+        $Response = Invoke-AwsJson -Arguments @("ecr", "describe-images", "--repository-name", $EcrRepositoryName, "--image-ids", "imageDigest=$Digest", "--region", $AwsRegion, "--output", "json")
     }
-    catch {
-        return @()
-    }
+    catch { return @() }
     $Details = @($Response.imageDetails) | Select-Object -First 1
     if ($null -eq $Details) { return @() }
     return @($Details.imageTags) | Sort-Object
 }
 
 function Show-DevStatus {
-    param([Parameter(Mandatory = $true)]$RuntimeStatus, [Parameter(Mandatory = $true)]$EdgeStatus)
+    $RuntimeStatus = Get-DevRuntimeStatus
+    $EdgeStatus = Get-DevEdgeStatus
     $OperationalState = if ($EdgeStatus.State -eq "active" -and $RuntimeStatus.State -eq "ready") {
         "active"
     } elseif ($EdgeStatus.State -eq "maintenance" -and $RuntimeStatus.State -eq "absent") {
         "maintenance"
     } elseif ($EdgeStatus.State -eq "not-provisioned" -and $RuntimeStatus.State -eq "absent") {
         "not provisioned"
-    } else {
-        "transition or incomplete"
-    }
+    } else { "transition or incomplete" }
+
     Write-Host "DEV operational state: $OperationalState"
     Write-Host "Edge state: $($EdgeStatus.State); runtime state: $($RuntimeStatus.State)"
     if ($null -ne $EdgeStatus.Distribution) {
@@ -290,183 +191,91 @@ function Show-DevStatus {
     }
     if ($null -ne $RuntimeStatus.Service) {
         Write-Host ("ECS tasks: desired={0}, running={1}, pending={2}" -f $RuntimeStatus.Service.desiredCount, $RuntimeStatus.Service.runningCount, $RuntimeStatus.Service.pendingCount)
-        $DeployedImageDigest = Get-ServiceImageDigest -Service $RuntimeStatus.Service
-        if ($null -ne $DeployedImageDigest) {
-            Write-Host "ECS image digest: $DeployedImageDigest"
-            $DeployedImageTags = @(Get-EcrImageTags -Digest $DeployedImageDigest)
-            if ($DeployedImageTags.Count -gt 0) {
-                Write-Host "ECS image tag: $($DeployedImageTags -join ', ')"
-            } else {
-                Write-Host "ECS image tag: <untagged or unavailable>"
-            }
+        $Digest = Get-ServiceImageDigest -Service $RuntimeStatus.Service
+        if ($null -ne $Digest) {
+            Write-Host "ECS image digest: $Digest"
+            $Tags = @(Get-EcrImageTags -Digest $Digest)
+            $TagText = if ($Tags.Count -gt 0) { $Tags -join ", " } else { "<untagged or unavailable>" }
+            Write-Host "ECS image tag: $TagText"
         }
     }
     switch ($OperationalState) {
         "active" { Write-Host "Cost profile: persistent edge plus ALB/public IPv4 and one Fargate task." }
         "maintenance" { Write-Host "Cost profile: persistent CloudFront edge only; disposable DEV runtime is absent." }
         "not provisioned" { Write-Host "Cost profile: no DEV edge or runtime resources detected." }
-        default { Write-Warning "DEV is between its two supported states. Complete or recover the interrupted transition." }
+        default { Write-Warning "DEV is between its two supported states. Review the latest CodeBuild execution." }
     }
-}
-
-function Set-DesiredCountOne {
-    $Content = Get-Content -Raw -LiteralPath $RuntimeVariablesPath
-    $Pattern = "(?m)^desired_count\s*=\s*\d+\s*$"
-    if ([regex]::Matches($Content, $Pattern).Count -ne 1) {
-        throw "terraform.tfvars must contain exactly one desired_count assignment."
-    }
-    [System.IO.File]::WriteAllText($RuntimeVariablesPath, [regex]::Replace($Content, $Pattern, "desired_count = 1"))
-}
-
-function Set-RuntimeImageTag {
-    param([Parameter(Mandatory = $true)][string]$Tag)
-    $Content = Get-Content -Raw -LiteralPath $RuntimeVariablesPath
-    $Pattern = '(?m)^image_tag\s*=\s*"[^"]+"\s*$'
-    if ([regex]::Matches($Content, $Pattern).Count -ne 1) {
-        throw "terraform.tfvars must contain exactly one image_tag assignment."
-    }
-    $Replacement = "image_tag = `"$Tag`""
-    [System.IO.File]::WriteAllText(
-        $RuntimeVariablesPath,
-        [regex]::Replace($Content, $Pattern, $Replacement)
-    )
-}
-
-function Invoke-Terraform {
-    param([Parameter(Mandatory = $true)][string]$TerraformDirectory, [Parameter(Mandatory = $true)][string[]]$Arguments)
-    Assert-CommandAvailable -Name "docker"
-    if (-not (Test-Path -LiteralPath $AwsConfigurationDirectory -PathType Container)) {
-        throw "AWS login cache directory is unavailable. Run 'aws login' and retry."
-    }
-    $RelativeDirectory = $TerraformDirectory.Substring($RepositoryRoot.Length).TrimStart("\").Replace("\", "/")
-    $DockerArguments = @("run", "--rm", "-e", "AWS_REGION=$AwsRegion", "-e", "AWS_DEFAULT_REGION=$AwsRegion", "-e", "AWS_SDK_LOAD_CONFIG=1", "-v", "${AwsConfigurationDirectory}:/root/.aws:ro", "-v", "${AwsLoginCacheDirectory}:/root/.aws/login/cache", "-v", "${RepositoryRoot}:/workspace", "-w", "/workspace/$RelativeDirectory", $TerraformImage) + $Arguments
-    & docker @DockerArguments
-    if ($LASTEXITCODE -ne 0) { throw "Terraform command failed." }
-}
-
-function Initialize-Terraform {
-    param([Parameter(Mandatory = $true)][string]$TerraformDirectory)
-    Invoke-Terraform -TerraformDirectory $TerraformDirectory -Arguments @("init", "-reconfigure", "-input=false", "-no-color", "-backend-config=backend.hcl")
 }
 
 function Read-ExactConfirmation {
-    param([Parameter(Mandatory = $true)][string]$Prompt, [Parameter(Mandatory = $true)][string]$Expected)
-    if ((Read-Host "$Prompt Type '$Expected' to continue") -cne $Expected) {
-        throw "Confirmation did not match. No Terraform apply was performed."
+    param([Parameter(Mandatory = $true)][string]$Expected)
+    if ((Read-Host "This starts a remote CodeBuild Terraform operation. Type '$Expected' to continue") -cne $Expected) {
+        throw "Confirmation did not match. No CodeBuild execution was started."
     }
 }
 
-function Invoke-ReviewedPlan {
+function Start-LifecycleBuild {
     param(
-        [Parameter(Mandatory = $true)][string]$TerraformDirectory,
-        [Parameter(Mandatory = $true)][string]$PlanName,
-        [Parameter(Mandatory = $true)][string]$Confirmation,
-        [string[]]$Variables = @(),
-        [switch]$Destroy,
-        [switch]$SkipConfirmation
+        [Parameter(Mandatory = $true)][string]$Operation,
+        [string]$RequestedImageTag
     )
-    $PlanPath = Join-Path $TerraformDirectory $PlanName
-    if (Test-Path -LiteralPath $PlanPath) { Remove-Item -LiteralPath $PlanPath -Force }
-    try {
-        $PlanArguments = @("plan", "-input=false", "-no-color", "-out=$PlanName")
-        foreach ($Variable in $Variables) { $PlanArguments += "-var=$Variable" }
-        if ($Destroy) { $PlanArguments += "-destroy" }
-        Invoke-Terraform -TerraformDirectory $TerraformDirectory -Arguments $PlanArguments
-        if (-not $SkipConfirmation) {
-            Read-ExactConfirmation -Prompt "Review the complete plan above." -Expected $Confirmation
+    $Overrides = @("name=DEV_OPERATION,value=$Operation,type=PLAINTEXT")
+    if (-not [string]::IsNullOrWhiteSpace($RequestedImageTag)) {
+        $Overrides += "name=DEV_IMAGE_TAG,value=$RequestedImageTag,type=PLAINTEXT"
+    }
+    $Arguments = @(
+        "codebuild", "start-build",
+        "--project-name", $BuildProjectName,
+        "--environment-variables-override"
+    ) + $Overrides + @("--region", $AwsRegion, "--output", "json")
+    $Response = Invoke-AwsJson -Arguments $Arguments
+    $BuildId = $Response.build.id
+    if ([string]::IsNullOrWhiteSpace($BuildId)) { throw "CodeBuild returned no build identifier." }
+    Write-Host "Started CodeBuild execution: $BuildId"
+    Write-Host "AWS Console: https://$AwsRegion.console.aws.amazon.com/codesuite/codebuild/projects/$BuildProjectName/history?region=$AwsRegion"
+
+    $PreviousStatus = ""
+    while ($true) {
+        $BuildResponse = Invoke-AwsJson -Arguments @("codebuild", "batch-get-builds", "--ids", $BuildId, "--region", $AwsRegion, "--output", "json")
+        $Build = @($BuildResponse.builds) | Select-Object -First 1
+        if ($null -eq $Build) { throw "CodeBuild execution '$BuildId' could not be read." }
+        if ($Build.buildStatus -ne $PreviousStatus) {
+            Write-Host "CodeBuild status: $($Build.buildStatus)"
+            $PreviousStatus = $Build.buildStatus
         }
-        Invoke-Terraform -TerraformDirectory $TerraformDirectory -Arguments @("apply", "-input=false", "-no-color", $PlanName)
+        if ($Build.buildStatus -in @("SUCCEEDED", "FAILED", "FAULT", "STOPPED", "TIMED_OUT")) {
+            if ($Build.buildStatus -ne "SUCCEEDED") {
+                throw "CodeBuild lifecycle execution ended with status $($Build.buildStatus). Review its CloudWatch logs."
+            }
+            Write-Host "CodeBuild lifecycle execution completed successfully."
+            return
+        }
+        Start-Sleep -Seconds 10
     }
-    finally {
-        if (Test-Path -LiteralPath $PlanPath) { Remove-Item -LiteralPath $PlanPath -Force }
-    }
-}
-
-function Wait-ForServiceStability {
-    Write-Host "Waiting for the ECS service to become stable..."
-    & aws ecs wait services-stable --cluster $ClusterName --services $ServiceName --region $AwsRegion
-    if ($LASTEXITCODE -ne 0) { throw "ECS did not reach a stable state within the AWS CLI wait period." }
-}
-
-function Wait-ForEdgeDeployment {
-    $EdgeStatus = Get-DevEdgeStatus
-    if ($null -eq $EdgeStatus.Distribution) { throw "CloudFront distribution was not found after apply." }
-    Write-Host "Waiting for the CloudFront distribution to deploy..."
-    & aws cloudfront wait distribution-deployed --id $EdgeStatus.Distribution.Id
-    if ($LASTEXITCODE -ne 0) { throw "CloudFront did not reach a deployed state within the AWS CLI wait period." }
 }
 
 if ($Command -eq "help") { Show-Usage; exit 0 }
 
-Assert-LocalConfiguration
 Assert-AwsIdentity
-$RuntimeStatus = Get-DevRuntimeStatus
-$EdgeStatus = Get-DevEdgeStatus
 
 switch ($Command) {
-    "status" { Show-DevStatus -RuntimeStatus $RuntimeStatus -EdgeStatus $EdgeStatus }
+    "status" { Show-DevStatus }
     "activate" {
-        if ($EdgeStatus.State -eq "active" -and $RuntimeStatus.State -eq "ready") {
-            Write-Host "DEV is already active."
-            Show-DevStatus -RuntimeStatus $RuntimeStatus -EdgeStatus $EdgeStatus
-            break
-        }
-        if ($RuntimeStatus.State -eq "incomplete") { throw "DEV runtime is incomplete. Review Terraform before activating it." }
-        Set-DesiredCountOne
-        Initialize-Terraform -TerraformDirectory $RuntimeTerraformDirectory
-        Invoke-ReviewedPlan -TerraformDirectory $RuntimeTerraformDirectory -PlanName "dev-active.tfplan" -Confirmation "APPLY ACTIVE DEV RUNTIME"
-        Wait-ForServiceStability
-        $RuntimeStatus = Get-DevRuntimeStatus
-        if ($RuntimeStatus.State -ne "ready") { throw "DEV runtime did not become ready; CloudFront remains in its previous state." }
-        Initialize-Terraform -TerraformDirectory $EdgeTerraformDirectory
-        Invoke-ReviewedPlan -TerraformDirectory $EdgeTerraformDirectory -PlanName "dev-edge-active.tfplan" -Confirmation "APPLY ACTIVE DEV EDGE" -Variables @("maintenance_mode=false", "origin_domain_name=$($RuntimeStatus.LoadBalancer.DNSName)")
-        Wait-ForEdgeDeployment
-        Show-DevStatus -RuntimeStatus (Get-DevRuntimeStatus) -EdgeStatus (Get-DevEdgeStatus)
+        Read-ExactConfirmation -Expected "START DEV ACTIVATE"
+        Start-LifecycleBuild -Operation "activate"
+        Show-DevStatus
+    }
+    "maintain" {
+        Read-ExactConfirmation -Expected "START DEV MAINTAIN"
+        Start-LifecycleBuild -Operation "maintain"
+        Show-DevStatus
     }
     "update" {
         if ([string]::IsNullOrWhiteSpace($ImageTag)) {
             throw "update requires -ImageTag with an immutable sha-<40 lowercase hex characters> tag."
         }
-        if ($EdgeStatus.State -ne "active" -or $RuntimeStatus.State -ne "ready") {
-            throw "DEV must be active and ready before an in-place image update."
-        }
-        $ExpectedImageDigest = Assert-EcrImageExists -Tag $ImageTag
-        Initialize-Terraform -TerraformDirectory $RuntimeTerraformDirectory
-        Invoke-ReviewedPlan `
-            -TerraformDirectory $RuntimeTerraformDirectory `
-            -PlanName "dev-update.tfplan" `
-            -Confirmation "APPLY DEV IMAGE UPDATE" `
-            -Variables @("image_tag=$ImageTag", "desired_count=1")
-        Wait-ForServiceStability
-        $RuntimeStatus = Get-DevRuntimeStatus
-        if ($RuntimeStatus.State -ne "ready") {
-            throw "DEV runtime did not return to ready after the image update."
-        }
-        $DeployedImageDigest = Get-ServiceImageDigest -Service $RuntimeStatus.Service
-        if ($DeployedImageDigest -ne $ExpectedImageDigest) {
-            throw "ECS stabilized without the digest referenced by the requested image tag. Review the ECS deployment."
-        }
-        Set-RuntimeImageTag -Tag $ImageTag
-        Write-Host "DEV image update completed: $ImageTag"
-        Write-Host "Saved the deployed image tag in the ignored local terraform.tfvars file."
-        Show-DevStatus -RuntimeStatus $RuntimeStatus -EdgeStatus (Get-DevEdgeStatus)
-    }
-    "maintain" {
-        if ($EdgeStatus.State -eq "maintenance" -and $RuntimeStatus.State -eq "absent") {
-            Write-Host "DEV is already in maintenance."
-            Show-DevStatus -RuntimeStatus $RuntimeStatus -EdgeStatus $EdgeStatus
-            break
-        }
-        $OriginDomainName = if ($null -ne $RuntimeStatus.LoadBalancer) { $RuntimeStatus.LoadBalancer.DNSName } else { "maintenance.invalid" }
-        Initialize-Terraform -TerraformDirectory $EdgeTerraformDirectory
-        Invoke-ReviewedPlan -TerraformDirectory $EdgeTerraformDirectory -PlanName "dev-edge-maintenance.tfplan" -Confirmation "APPLY MAINTENANCE DEV" -Variables @("maintenance_mode=true", "origin_domain_name=$OriginDomainName")
-        Wait-ForEdgeDeployment
-        if ($RuntimeStatus.State -ne "absent") {
-            if ($RuntimeStatus.State -eq "incomplete") { throw "The edge is in maintenance, but the runtime is incomplete. Review Terraform before destroying it." }
-            Write-Warning "CloudFront now serves maintenance. The reviewed destroy removes the disposable DEV runtime."
-            Initialize-Terraform -TerraformDirectory $RuntimeTerraformDirectory
-            Invoke-ReviewedPlan -TerraformDirectory $RuntimeTerraformDirectory -PlanName "dev-maintenance.tfplan" -Confirmation "APPLY MAINTENANCE DEV" -Destroy -SkipConfirmation
-        }
-        Show-DevStatus -RuntimeStatus (Get-DevRuntimeStatus) -EdgeStatus (Get-DevEdgeStatus)
+        Read-ExactConfirmation -Expected "START DEV UPDATE"
+        Start-LifecycleBuild -Operation "update" -RequestedImageTag $ImageTag
+        Show-DevStatus
     }
 }
